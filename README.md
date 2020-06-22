@@ -57,20 +57,17 @@ Geoscience Australia.
   If you only want to build the GA plugins, you should just need the `seiscomp` and
   `common` repositories.
 
-- Go to the src directory and clone this repository into the directory 'ga'.
-
+- Go to the src/extras directory and clone this repository. (If you're building
+  for SeisComP3 and python2 instead, this should just be src/ instead of
+  src/extras/.)
 
 - Return to the top level directory and follow the build instructions in the
   [README](https://github.com/SeisComP/seiscomp/blob/master/README.md) of the
   the [SeisComP](https://github.com/SeisComP/seiscomp.git) repository.
 
   If you only want to build the GA plugins and their dependencies, just use
-  cmake to generate the makefiles, and then run:
-
-    ```
-    cd src/ga
-    make
-    ```
+  cmake to generate the makefiles, and then run `make` in the
+  `src/extras/ga-mla` directory.
 
   This still builds quite a bit of stuff, but does save some time.
 
