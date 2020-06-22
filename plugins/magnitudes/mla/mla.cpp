@@ -2,13 +2,21 @@
 
 #include "mla.h"
 
-#include <seiscomp/logging/log.h>
+#ifdef __MLA_SC3__
+// SeisComP 3 includes
+#include <seiscomp3/logging/log.h>
 #if SC_API_VERSION < SC_API_VERSION_CHECK(12,0,0)
-#include <seiscomp/geo/geofeature.h>
+#include <seiscomp3/geo/geofeature.h>
 #else
-#include <seiscomp/geo/feature.h>
+#include <seiscomp3/geo/feature.h>
 #endif
+#include <seiscomp3/math/geo.h>
+#else
+// SeisComP >=4 includes
+#include <seiscomp/logging/log.h>
+#include <seiscomp/geo/feature.h>
 #include <seiscomp/math/geo.h>
+#endif
 
 #include <vector>
 #include <string>
