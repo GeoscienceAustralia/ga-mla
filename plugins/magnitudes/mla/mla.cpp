@@ -184,6 +184,9 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
 #if SC_API_VERSION >= SC_API_VERSION_CHECK(12,0,0)
       const Seiscomp::DataModel::Amplitude *amplitude,
 #endif
+#if SC_API_VERSION >= SC_API_VERSION_CHECK(15,0,0)
+      const Seiscomp::Processing::MagnitudeProcessor::Locale *locale,
+#endif
       double &value)
 {
     // The calculation used will depend on which of these regions the origin
