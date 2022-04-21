@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<seiscomp>
+    <plugin name="mwpa">
+        <extends>global</extends>
+        <description>
+            The Mwp magnitude processor with an Mw(Mwp) estimate derived from
+            the GA catalogue.
+        </description>
+    </plugin>
+    <binding name="mwpa" module="global">
+        <description>
+            The Mwp magnitude processor with an Mw(Mwp) estimate derived from
+            the GA catalogue.
+        </description>
+    </binding>
+</seiscomp>
