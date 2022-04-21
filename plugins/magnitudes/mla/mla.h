@@ -59,6 +59,8 @@ public:
     */
     virtual int capabilities() const;
 
+    bool setup(const Seiscomp::Processing::Settings &settings);
+
     /*
     Creates the parameter options associated with the capability.
     @param cap: The capability to create parameters for.
@@ -76,6 +78,8 @@ public:
     virtual bool setParameter(Capability cap, const std::string &value);
 
 protected:
+
+    virtual std::string defaultFilter() const { return ""; };
 
     /*
     Computes the amplitude of data in the range[i1, i2].
@@ -134,7 +138,7 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         #####################################################################*/
 
         // Constructor. Return a new Magnitude_MLA object.
-        Magnitude_MLA();
+        explicit Magnitude_MLA(const std::string& type = GA_ML_AUS_MAG_TYPE);
 
         // Destructor. Cleans up all data created on the heap.
         virtual ~Magnitude_MLA();

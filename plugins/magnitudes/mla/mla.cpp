@@ -27,10 +27,10 @@ ADD_SC_PLUGIN(
         ( "MLa magnitude. Calculates magnitude based on universal formulae "
         "MLa=c0_log10(Amp)+c1*log10(delta*c3+c4)+c5*(delta+c6), "
         "where coefficients c1...6 vary based on epicentral location."),
-        "Geoscience Australia", 0, 0, 2);
+        "Geoscience Australia", 0, 0, 2)
 
 // Register the amplitude processor.
-IMPLEMENT_SC_CLASS_DERIVED(Amplitude_MLA, AmplitudeProcessor, "AmplitudeProcessor_MLA");
+IMPLEMENT_SC_CLASS_DERIVED(Amplitude_MLA, AmplitudeProcessor, "Amplitude_MLA");
 REGISTER_AMPLITUDEPROCESSOR(Amplitude_MLA, GA_ML_AUS_AMP_TYPE);
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -50,6 +50,27 @@ Amplitude_MLA::Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::str
     // Change max distance to 11 degrees.
     setMaxDist(11);
     this->_type = type;
+}
+
+bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
+{
+    std::string filterString;
+    try {
+        std::string cfgName = "amplitudes." + _type + ".filter";
+        filterString = settings.getString(cfgName);
+    }
+    catch(...) {
+        filterString = defaultFilter();
+    }
+
+    if (!filterString.empty()) {
+        SEISCOMP_DEBUG("Initializing %s with filter %s", _type.c_str(), filterString.c_str());
+        _preFilter = filterString; // ML has built-in prefiltering; just turn it on
+    } else {
+        SEISCOMP_DEBUG("Initializing %s with no filter", _type.c_str());
+    }
+
+    return true;
 }
 
 int Amplitude_MLA::capabilities() const
@@ -118,8 +139,8 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
 // Register the magnitude processor.
 REGISTER_MAGNITUDEPROCESSOR(Magnitude_MLA, GA_ML_AUS_MAG_TYPE);
 
-Magnitude_MLA::Magnitude_MLA()
-    : Seiscomp::Processing::MagnitudeProcessor(GA_ML_AUS_MAG_TYPE)
+Magnitude_MLA::Magnitude_MLA(const std::string& type)
+    : Seiscomp::Processing::MagnitudeProcessor(type)
 {
     m_regions = new Seiscomp::Geo::GeoFeatureSet();
     m_fileCat = new Seiscomp::Geo::Category(1);
@@ -149,7 +170,7 @@ bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
     {
         SEISCOMP_ERROR(
             "%s can not read region file path from configuration file",
-            GA_ML_AUS_MAG_TYPE
+            type().c_str()
         );
         return false;
     }

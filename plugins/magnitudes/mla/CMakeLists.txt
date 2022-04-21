@@ -3,10 +3,12 @@ SET(PLUGIN_TARGET mla)
 SET(
         PLUGIN_SOURCES
             mla.cpp
+            variants.cpp
 )
 SET(
         PLUGIN_HEADERS
             mla.h
+            variants.h
 )
 
 SC_ADD_PLUGIN_LIBRARY(PLUGIN ${PLUGIN_TARGET} "")
