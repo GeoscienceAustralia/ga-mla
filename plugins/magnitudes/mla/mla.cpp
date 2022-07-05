@@ -2,26 +2,23 @@
 
 #include "mla.h"
 
-#ifdef __MLA_SC3__
-// SeisComP 3 includes
-#include <seiscomp3/logging/log.h>
-#if SC_API_VERSION < SC_API_VERSION_CHECK(12,0,0)
-#include <seiscomp3/geo/geofeature.h>
-#else
-#include <seiscomp3/geo/feature.h>
-#endif
-#include <seiscomp3/math/geo.h>
-#else
-// SeisComP >=4 includes
 #include <seiscomp/logging/log.h>
 #include <seiscomp/geo/feature.h>
 #include <seiscomp/math/geo.h>
-#endif
 
 #include <vector>
 #include <string>
 #include <math.h>
 
+/*
+Maps the name of a region to the member function which is used to
+calculate the magnitude for that region.
+*/
+std::map<std::string, Magnitude_MLA::MagCalc> Magnitude_MLA::regionToCalcMap {
+    {std::string("West"), &Magnitude_MLA::computeMagWest},
+    {std::string("East"), &Magnitude_MLA::computeMagEast},
+    {std::string("South"), &Magnitude_MLA::computeMagSouth},
+};
 
 ADD_SC_PLUGIN(
         ( "MLa magnitude. Calculates magnitude based on universal formulae "
@@ -140,49 +137,7 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
 REGISTER_MAGNITUDEPROCESSOR(Magnitude_MLA, GA_ML_AUS_MAG_TYPE);
 
 Magnitude_MLA::Magnitude_MLA(const std::string& type)
-    : Seiscomp::Processing::MagnitudeProcessor(type)
-{
-    m_regions = new Seiscomp::Geo::GeoFeatureSet();
-    m_fileCat = new Seiscomp::Geo::Category(1);
-    setupRegionToCalc();
-}
-
-Magnitude_MLA::~Magnitude_MLA()
-{
-    delete m_regions;
-    delete m_fileCat;
-}
-
-void Magnitude_MLA::setupRegionToCalc()
-{
-    m_regionToCalcMap[std::string("West")] = &Magnitude_MLA::computeMagWest;
-    m_regionToCalcMap[std::string("East")] = &Magnitude_MLA::computeMagEast;
-    m_regionToCalcMap[std::string("South")] = &Magnitude_MLA::computeMagSouth;
-}
-
-bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
-{
-    std::string filePath = "";
-    try{
-        filePath = settings.getString("mla.regionfilepath");
-    }
-    catch(...)
-    {
-        SEISCOMP_ERROR(
-            "%s can not read region file path from configuration file",
-            type().c_str()
-        );
-        return false;
-    }
-
-    if (!m_regions->readBNAFile(filePath, m_fileCat))
-    {
-        SEISCOMP_ERROR("Can not read the bna region file at %s", filePath.c_str());
-        return false;
-    }
-
-    return true;
-}
+    : Seiscomp::Processing::MagnitudeProcessor(type) {}
 
 std::string Magnitude_MLA::amplitudeType() const
 {
@@ -191,43 +146,29 @@ std::string Magnitude_MLA::amplitudeType() const
 
 Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude(
       double amplitudeValue, // in millimetres
-#if SC_API_VERSION >= SC_API_VERSION_CHECK(12,0,0)
       const std::string &unit,
-#endif
       double period,         // in seconds
-#if SC_API_VERSION >= SC_API_VERSION_CHECK(12,0,0)
       double snr,
-#endif
       double delta,          // in degrees
       double depth,          // in kilometres
       const Seiscomp::DataModel::Origin *hypocenter,
       const Seiscomp::DataModel::SensorLocation *receiver,
-#if SC_API_VERSION >= SC_API_VERSION_CHECK(12,0,0)
       const Seiscomp::DataModel::Amplitude *amplitude,
-#endif
-#if SC_API_VERSION >= SC_API_VERSION_CHECK(15,0,0)
       const Seiscomp::Processing::MagnitudeProcessor::Locale *locale,
-#endif
       double &value)
 {
-    // The calculation used will depend on which of these regions the origin
-    // falls within. Retrieve the longitude and latitude of the origin.
-    Seiscomp::Geo::Vertex originLoc;
-    originLoc.lon = hypocenter->longitude().value();
-    originLoc.lat = hypocenter->latitude().value();
-    const std::vector<Seiscomp::Geo::GeoFeature*> regions = m_regions->features();
-    for(unsigned int i = 0; i < regions.size(); i++)
-    {
-        if (regions[i]->contains(originLoc))
-        {
-            MagCalc calcFunction = m_regionToCalcMap[regions[i]->name()];
-            return (this->*calcFunction)(amplitudeValue, period, delta, depth, value);
-        }
+    // The calculation used depends on which of the three MLa regions the
+    // origin falls within. Thus you must use this magnitude processor with a
+    // region file containing regions named West, East and North.
+    MagCalc calcFunction;
+    try {
+        calcFunction = regionToCalcMap.at(locale->name);
     }
-
-    // When the information is not within the regions, return a could not
-    // calculate status.
-    return DistanceOutOfRange;
+    catch(...) {
+        SEISCOMP_ERROR("Unknown MLa region name %s", locale->name.c_str());
+        return DistanceOutOfRange;
+    }
+    return (this->*calcFunction)(amplitudeValue, period, delta, depth, value);
 }
 
 double Magnitude_MLA::distance(double delta, double depth)

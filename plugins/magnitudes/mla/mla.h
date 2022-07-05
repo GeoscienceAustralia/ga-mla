@@ -8,23 +8,10 @@
 #define GA_ML_AUS_AMP_TYPE "MLa"
 #define GA_ML_AUS_MAG_TYPE "MLa"
 
-#ifdef __MLA_SC3__
-// SeisComP 3 includes
-#include <seiscomp3/processing/amplitudes/MLv.h>
-#include <seiscomp3/processing/magnitudeprocessor.h>
-#include <seiscomp3/core/plugin.h>
-#if SC_API_VERSION < SC_API_VERSION_CHECK(12,0,0)
-#include <seiscomp3/geo/geofeatureset.h>
-#else
-#include <seiscomp3/geo/featureset.h>
-#endif
-#else
-// SeisComP >=4 includes
 #include <seiscomp/processing/amplitudes/MLv.h>
 #include <seiscomp/processing/magnitudeprocessor.h>
 #include <seiscomp/core/plugin.h>
 #include <seiscomp/geo/featureset.h>
-#endif
 
 #include <string>
 #include <map>
@@ -140,13 +127,6 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         // Constructor. Return a new Magnitude_MLA object.
         explicit Magnitude_MLA(const std::string& type = GA_ML_AUS_MAG_TYPE);
 
-        // Destructor. Cleans up all data created on the heap.
-        virtual ~Magnitude_MLA();
-
-        // Configures the plugin to get all the relevant information it
-        // requires to perform the calculations.
-        bool setup(const Seiscomp::Processing::Settings &settings);
-
         // Sets the amplitude type that is being used in the calculation.
         // This method is used to specify what amplitude from scamp is used
         // as the amplitude value passed into the computeMagnitude method for
@@ -203,23 +183,7 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
                                     PRIVATE MEMBER VARIABLES
         #####################################################################*/
 
-        /*
-        The dataset representing the geographical regions which are used to
-        determine which formula to use.
-        */
-        Seiscomp::Geo::GeoFeatureSet        *m_regions;
-
-        /*
-        The category for all the GeoFeatures in the m_regions GeoFeatureSet
-        from the bna file.
-        */
-        Seiscomp::Geo::Category                 *m_fileCat;
-
-        /*
-        Maps the name of the region to the member function which is used to
-        calculate the magnitude for that region.
-        */
-        std::map<std::string, MagCalc>     m_regionToCalcMap;
+        static std::map<std::string, MagCalc> regionToCalcMap;
 
         /*#####################################################################
                                                 PRIVATE METHODS
