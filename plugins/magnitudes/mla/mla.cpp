@@ -160,6 +160,11 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
     // The calculation used depends on which of the three MLa regions the
     // origin falls within. Thus you must use this magnitude processor with a
     // region file containing regions named West, East and North.
+    if (!locale) {
+        SEISCOMP_INFO("Hypocenter not in any MLa region");
+        return DistanceOutOfRange;
+    }
+
     MagCalc calcFunction;
     try {
         calcFunction = regionToCalcMap.at(locale->name);
