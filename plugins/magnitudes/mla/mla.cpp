@@ -54,6 +54,10 @@ Amplitude_MLA::Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::str
 
 bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
 {
+    if ( !AmplitudeProcessor_MLv::setup(settings) ) {
+        return false;
+    }
+
     std::string filterString;
     try {
         std::string cfgName = "amplitudes." + _type + ".filter";
@@ -162,6 +166,10 @@ void Magnitude_MLA::setupRegionToCalc()
 
 bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
 {
+    if ( !MagnitudeProcessor::setup(settings) ) {
+        return false;
+    }
+
     std::string filePath = "";
     try{
         filePath = settings.getString("mla.regionfilepath");
