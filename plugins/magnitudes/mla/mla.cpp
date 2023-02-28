@@ -161,6 +161,8 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
       const Seiscomp::Processing::MagnitudeProcessor::Locale *locale,
       double &value)
 {
+	if ( amplitude <= 0 )
+		return AmplitudeOutOfRange;
     // The calculation used depends on which of the three MLa regions the
     // origin falls within. Thus you must use this magnitude processor with a
     // region file containing regions named West, East and North.
