@@ -171,6 +171,10 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
         return DistanceOutOfRange;
     }
 
+    if ( delta < minDistanceDeg || delta > maxDistanceDeg ) {
+        return DistanceOutOfRange;
+    }
+
     MagCalc calcFunction;
     try {
         calcFunction = regionToCalcMap.at(locale->name);
@@ -206,6 +210,15 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagWest(
             log10(amplitude) + (1.137 * log10(r)) +
             (0.000657 * r) + 0.66);
     return OK;
+}
+
+bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
+{
+    try { minDistanceDeg = settings.getDouble("magnitudes.MLa.minDist"); }
+    catch ( ... ) {}
+
+    try { maxDistanceDeg = settings.getDouble("magnitudes.MLa.maxDist"); }
+    catch ( ... ) {}
 }
 
 // Calculates the ml magnitude for the east region (Eastern Australia).

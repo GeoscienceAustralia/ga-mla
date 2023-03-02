@@ -134,6 +134,8 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         // the name of the amplitude type from scamp that you want to use.
         std::string amplitudeType() const;
 
+        bool setup(const Seiscomp::Processing::Settings &settings);
+
         // Calculates the ml magnitude with the given parameters.
         // @param amplitude: Amplitude of the seismic event (in millimetres).
         // @param period: (in seconds).
@@ -183,6 +185,8 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
                                     PRIVATE MEMBER VARIABLES
         #####################################################################*/
 
+        double minDistanceDeg{11};
+        double maxDistanceDeg{180};
         static std::map<std::string, MagCalc> regionToCalcMap;
 
         /*#####################################################################
