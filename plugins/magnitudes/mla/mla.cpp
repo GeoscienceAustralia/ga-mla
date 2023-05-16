@@ -51,9 +51,6 @@ Amplitude_MLA::Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::str
 
 bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
 {
-    if ( !AmplitudeProcessor_MLv::setup(settings) ) {
-        return false;
-    }
 
     std::string filterString;
     try {
