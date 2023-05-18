@@ -68,7 +68,7 @@ bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
     }
 
     double maxDist;
-    if ( settings.getDouble(maxDist, "amplitudes." + _type + ".maxDist") ) {
+    if ( settings.getValue(maxDist, "amplitudes." + _type + ".maxDist") ) {
         setMaxDist(maxDist);
     } else {
         setMaxDist(11);
