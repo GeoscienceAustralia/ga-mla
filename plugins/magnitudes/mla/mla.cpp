@@ -36,16 +36,12 @@ REGISTER_AMPLITUDEPROCESSOR(Amplitude_MLA, GA_ML_AUS_AMP_TYPE);
 Amplitude_MLA::Amplitude_MLA(const std::string& type)
     : Seiscomp::Processing::AmplitudeProcessor_MLv()
 {
-    // Change max distance to 11 degrees.
-    setMaxDist(11);
     this->_type = type;
 }
 
 Amplitude_MLA::Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::string& type)
     : Seiscomp::Processing::AmplitudeProcessor_MLv(trigger)
 {
-    // Change max distance to 11 degrees.
-    setMaxDist(11);
     this->_type = type;
 }
 
@@ -69,6 +65,13 @@ bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
         _preFilter = filterString; // ML has built-in prefiltering; just turn it on
     } else {
         SEISCOMP_DEBUG("Initializing %s with no filter", _type.c_str());
+    }
+
+    double maxDist;
+    if ( settings.getValue(maxDist, "amplitudes." + _type + ".maxDist") ) {
+        setMaxDist(maxDist);
+    } else {
+        setMaxDist(11);
     }
 
     return true;
