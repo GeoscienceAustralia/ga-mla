@@ -35,12 +35,6 @@ public:
     explicit Amplitude_MLA(const std::string& type=GA_ML_AUS_AMP_TYPE);
 
     /*
-    Constructor. Extends the base class behaviour by changing the
-    maximum distance to 11 degrees.
-    */
-    Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::string& type=GA_ML_AUS_AMP_TYPE);
-
-    /*
     Returns the capabilities of the processor. This will be NoCapability.
     @returns: Capability of processor (NoCapability).
     */
