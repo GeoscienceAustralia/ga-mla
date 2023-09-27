@@ -39,12 +39,6 @@ Amplitude_MLA::Amplitude_MLA(const std::string& type)
     this->_type = type;
 }
 
-Amplitude_MLA::Amplitude_MLA(const Seiscomp::Core::Time& trigger, const std::string& type)
-    : Seiscomp::Processing::AmplitudeProcessor_MLv(trigger)
-{
-    this->_type = type;
-}
-
 bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
 {
     if ( !AmplitudeProcessor_MLv::setup(settings) ) {
