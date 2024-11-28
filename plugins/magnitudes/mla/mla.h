@@ -121,6 +121,8 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         // Constructor. Return a new Magnitude_MLA object.
         explicit Magnitude_MLA(const std::string& type = GA_ML_AUS_MAG_TYPE);
 
+        bool setup(const Seiscomp::Processing::Settings &settings);
+
         // Sets the amplitude type that is being used in the calculation.
         // This method is used to specify what amplitude from scamp is used
         // as the amplitude value passed into the computeMagnitude method for
@@ -170,6 +172,7 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         @returns The distance (R component) of the calculation formula.
         */
         static double distance(double delta, double depth);
+        bool treatAsValidMagnitude() const override;
 
     private:
 
@@ -178,6 +181,8 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         #####################################################################*/
 
         static std::map<std::string, MagCalc> regionToCalcMap;
+        bool   _validValue;
+        double _minSNR;
 
         /*#####################################################################
                                                 PRIVATE METHODS
