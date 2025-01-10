@@ -210,6 +210,9 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
         // When SNR check fails we want option 2, so we set the _validValue flag and return SNROutOfRange.
         status = SNROutOfRange;
         _validValue = true;
+        SEISCOMP_DEBUG("%s SNR = %.1f is less than minSNR = %.1f.", type(), snr, _minSNR);
+    } else {
+        SEISCOMP_DEBUG("%s SNR = %.1f is greater than minSNR = %.1f.", type(), snr, _minSNR);
     }
 
     return status;
