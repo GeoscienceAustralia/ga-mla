@@ -141,18 +141,65 @@ Magnitude_MLA::Magnitude_MLA(const std::string& type)
     : Seiscomp::Processing::MagnitudeProcessor(type)
     , _minSNR(2) {}
 
-bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
-{
+bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings) {
+    // First check base setup
     if (!MagnitudeProcessor::setup(settings)) {
+        SEISCOMP_ERROR("Failed to setup base magnitude processor");
         return false;
     }
 
-    _minSNR = 2;
+    // Set default value
+    _minSNR = 2.0;
+    
+    /* Configuration can be set in with the following hierarchy:
+     * Module specific config (highest priority):
+     *    module.trunk.global.magnitudes.[TYPE].minSNR
+     *    Example: module.trunk.global.magnitudes.MLa.minSNR = 1.0
+     * These can be set in:
+     * - /opt/seiscomp/etc/global.cfg (recommended)
+     * - /opt/seiscomp/etc/scmag.cfg
+     */
+    
+    // Try module-specific configuration first
+    std::string moduleKey = std::string("module.trunk.global.magnitudes.") + type() + ".minSNR";
+    try {
+        if (settings.getValue(_minSNR, moduleKey)) {
+            SEISCOMP_INFO("%s: Using module-specific minSNR = %f", type().c_str(), _minSNR);
+            return true;
+        }
+    }
+    catch (const std::exception& e) {
+        SEISCOMP_DEBUG("%s: Module-specific config not found: %s", type().c_str(), e.what());
+    }
 
-    std::string prefix = std::string("magnitudes.") + type() + ".";
+    // Try type-specific configuration
+    std::string key = std::string("magnitudes.") + type() + ".minSNR";
+    SEISCOMP_DEBUG("%s: Looking for configuration key: %s", type().c_str(), key.c_str());
+    
+    try {
+        if (settings.getValue(_minSNR, key)) {
+            SEISCOMP_INFO("%s: Using configured minSNR = %f", type().c_str(), _minSNR);
+            return true;
+        }
+    }
+    catch (const std::exception& e) {
+        SEISCOMP_DEBUG("%s: Type-specific config not found: %s", type().c_str(), e.what());
+    }
 
-    try { _minSNR = settings.getDouble(prefix + "minSNR"); }
-    catch ( ... ) {}
+    // Try global config
+    try {
+        if (settings.getValue(_minSNR, "magnitudes.minSNR")) {
+            SEISCOMP_INFO("%s: Using global minSNR = %f", type().c_str(), _minSNR);
+            return true;
+        }
+    }
+    catch (const std::exception& e) {
+        SEISCOMP_DEBUG("%s: Global config not found: %s", type().c_str(), e.what());
+    }
+
+    // No configuration found, use default
+    SEISCOMP_INFO("%s: No minSNR configuration found, using default value %f", 
+                  type().c_str(), _minSNR);
 
     return true;
 }

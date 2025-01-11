@@ -14,12 +14,15 @@
     public: \
         MAGCLASS() : Magnitude_MLA(#NAME) {}; \
         std::string amplitudeType() const override { return #NAME; }; \
+        bool setup(const Seiscomp::Processing::Settings &settings) override { \
+            return Magnitude_MLA::setup(settings); /* Inherit base config */ \
+        } \
     }
 
 #define DEFINE_MLA_VARIANT(NAME, DEFAULTFILTER) \
     _MLA_VARIANT(Amplitude_##NAME, Magnitude_##NAME, NAME, DEFAULTFILTER)
 
-
+// Define the variants
 DEFINE_MLA_VARIANT(MLa01, "BW_HP(3, 0.1)");
 DEFINE_MLA_VARIANT(MLa05, "BW_HP(3, 0.5)");
 DEFINE_MLA_VARIANT(MLa075, "BW_HP(3, 0.75)");
