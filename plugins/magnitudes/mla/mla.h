@@ -123,8 +123,8 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
 
         bool setup(const Seiscomp::Processing::Settings &settings);
 
-       // In the public section of the Magnitude_MLA class
         void setDefaults() override; 
+
         // Sets the amplitude type that is being used in the calculation.
         // This method is used to specify what amplitude from scamp is used
         // as the amplitude value passed into the computeMagnitude method for

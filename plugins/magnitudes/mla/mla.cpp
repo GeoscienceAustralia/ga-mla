@@ -137,9 +137,7 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
 // Register the magnitude processor.
 REGISTER_MAGNITUDEPROCESSOR(Magnitude_MLA, GA_ML_AUS_MAG_TYPE);
 
-// Add this as a separate method in mla.cpp, NOT inside another method
 void Magnitude_MLA::setDefaults() {
-    // Initialize default values here
     _minSNR = 2.0;
 }
 
