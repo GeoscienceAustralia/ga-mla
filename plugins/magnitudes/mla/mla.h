@@ -121,8 +121,6 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         // Constructor. Return a new Magnitude_MLA object.
         explicit Magnitude_MLA(const std::string& type = GA_ML_AUS_MAG_TYPE);
 
-        bool setup(const Seiscomp::Processing::Settings &settings);
-
         void setDefaults() override; 
 
         // Sets the amplitude type that is being used in the calculation.
@@ -174,7 +172,6 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         @returns The distance (R component) of the calculation formula.
         */
         static double distance(double delta, double depth);
-        bool treatAsValidMagnitude() const override;
 
     private:
 
@@ -183,8 +180,6 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         #####################################################################*/
 
         static std::map<std::string, MagCalc> regionToCalcMap;
-        bool   _validValue;
-        double _minSNR;
 
         /*#####################################################################
                                                 PRIVATE METHODS
