@@ -137,22 +137,13 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
 // Register the magnitude processor.
 REGISTER_MAGNITUDEPROCESSOR(Magnitude_MLA, GA_ML_AUS_MAG_TYPE);
 
-void Magnitude_MLA::setDefaults() {
-    _minSNR = 2.0;
+Magnitude_MLA::Magnitude_MLA(const std::string& type) 
+        : Seiscomp::Processing::MagnitudeProcessor(type) {
+    Magnitude_MLA::setDefaults();
 }
 
-bool Magnitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
-{
-    if (!MagnitudeProcessor::setup(settings)) {
-        return false;
-    }
-    
-    std::string prefix = std::string("magnitudes.") + type() + ".";
-
-    try { _minSNR = settings.getDouble(prefix + "minSNR"); }
-    catch ( ... ) {}
-
-    return true;
+void Magnitude_MLA::setDefaults() {
+    _minimumSNR = 2.0;
 }
 
 std::string Magnitude_MLA::amplitudeType() const
@@ -173,11 +164,11 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
       const Seiscomp::Processing::MagnitudeProcessor::Locale *locale,
       double &value)
 {
-    // _validValue is returned when treatAsValidMagnitude() is called, which is a
+    // _treatAsValidMagnitude is returned when treatAsValidMagnitude() is called, which is a
     // follow-up check performed only when the returned status is not OK. We set this
     // flag if we're returning non-OK but want the stamag to still be created (just
     // marked as failed QC).
-    _validValue = false;
+    _treatAsValidMagnitude = false;
 
     if ( amplitudeValue <= 0 )
 	    return AmplitudeOutOfRange;    
@@ -200,24 +191,20 @@ Seiscomp::Processing::MagnitudeProcessor::Status Magnitude_MLA::computeMagnitude
 
     Seiscomp::Processing::MagnitudeProcessor::Status status = (this->*calcFunction)(amplitudeValue, period, delta, depth, value);
 
-    if ( snr < _minSNR ) {
+    if ( _minimumSNR && snr < *_minimumSNR ) {
         // magtool logic is as follows:
         // 1. If status == OK, accept station magnitude with passedQC = true
         // 2. If status != OK but treatAsValidMagnitude(), accept station magnitude with passedQC = false
         // 3. If status != OK and !treatAsValidMagnitude(), exclude station magnitude entirely
-        // When SNR check fails we want option 2, so we set the _validValue flag and return SNROutOfRange.
+        // When SNR check fails we want option 2, so we set the _treatAsValidMagnitude flag and return SNROutOfRange.
         status = SNROutOfRange;
-        _validValue = true;
-        SEISCOMP_DEBUG("%s SNR = %.1f is less than minSNR = %.1f.", type(), snr, _minSNR);
+        _treatAsValidMagnitude = true;
+        SEISCOMP_DEBUG("%s SNR = %.1f is less than minSNR = %.1f.", type(), snr, *_minimumSNR);
     } else {
-        SEISCOMP_DEBUG("%s SNR = %.1f is greater than minSNR = %.1f.", type(), snr, _minSNR);
+        SEISCOMP_DEBUG("%s SNR = %.1f is greater than minSNR = %.1f.", type(), snr, *_minimumSNR);
     }
 
     return status;
-}
-
-bool Magnitude_MLA::treatAsValidMagnitude() const {
-    return _validValue;
 }
 
 double Magnitude_MLA::distance(double delta, double depth)
