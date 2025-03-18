@@ -4,9 +4,14 @@
 
 #include <seiscomp/logging/log.h>
 #include <seiscomp/geo/feature.h>
+#include <seiscomp/datamodel/databasequery.h>
+#include <seiscomp/datamodel/object.h>
+#include <seiscomp/datamodel/origin.h>
+#include <seiscomp/datamodel/magnitude.h>
+#include <seiscomp/datamodel/event.h>
 #include <seiscomp/math/geo.h>
+#include <seiscomp/client/application.h>
 
-#include <vector>
 #include <string>
 #include <math.h>
 
@@ -25,6 +30,47 @@ ADD_SC_PLUGIN(
         "MLa=c0_log10(Amp)+c1*log10(delta*c3+c4)+c5*(delta+c6), "
         "where coefficients c1...6 vary based on epicentral location."),
         "Geoscience Australia", 0, 0, 2)
+
+#define _T(name) (_db->convertColumnName(name))
+
+// DatabaseQuery::queryObject is protected so this is the only way to use it
+class MyQuery : public Seiscomp::DataModel::DatabaseQuery {
+public:
+    MyQuery(Seiscomp::IO::DatabaseInterface* i) : Seiscomp::DataModel::DatabaseQuery(i) {}
+    Seiscomp::DataModel::Magnitude* getMLaForEvent(std::string evid) {
+        std::string escaped_evid;
+        if (!_db->escape(escaped_evid, evid)) {
+            SEISCOMP_ERROR("Error escaping event ID '%s'", evid.c_str());
+            return nullptr;
+        }
+
+        // Find the most recent MLa for this event
+        const std::string q =
+            "select PMagnitude." + _T("publicID") + ",Magnitude.*"
+            " from Magnitude,PublicObject as PMagnitude,Origin,PublicObject as POrigin,Event,PublicObject as PEvent,OriginReference"
+            " where Magnitude." + _T("type") + " = 'MLa'"
+            " and Magnitude._parent_oid=Origin._oid"
+            " and OriginReference." + _T("originID") + " = POrigin." + _T("publicID") +
+            " and OriginReference._parent_oid=Event._oid"
+            " and PEvent." + _T("publicID") + " = '" + escaped_evid + "'" +
+            " and Magnitude._oid=PMagnitude._oid"
+            " and Origin._oid=POrigin._oid"
+            " and Event._oid=PEvent._oid"
+            " order by Origin." + _T("creationInfo_creationTime") + " desc limit 1";
+
+        const auto magnitude = Seiscomp::DataModel::Magnitude::Cast(
+            queryObject(Seiscomp::DataModel::Magnitude::TypeInfo(), q)
+        );
+
+        if (!magnitude) {
+            SEISCOMP_DEBUG("No existing MLa magnitude found for %s", escaped_evid.c_str());
+        }
+
+        return magnitude;
+    }
+};
+
+#undef _T
 
 // Register the amplitude processor.
 IMPLEMENT_SC_CLASS_DERIVED(Amplitude_MLA, AmplitudeProcessor, "Amplitude_MLA");
@@ -55,8 +101,8 @@ bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
     }
 
     if (!filterString.empty()) {
-        SEISCOMP_DEBUG("Initializing %s with filter %s", _type.c_str(), filterString.c_str());
-        _preFilter = filterString; // ML has built-in prefiltering; just turn it on
+        SEISCOMP_DEBUG("Initializing %s with default filter %s", _type.c_str(), filterString.c_str());
+        _defaultPreFilter = filterString; // ML has built-in prefiltering; just turn it on
     } else {
         SEISCOMP_DEBUG("Initializing %s with no filter", _type.c_str());
     }
@@ -102,6 +148,54 @@ bool Amplitude_MLA::setParameter(Capability cap, const std::string &value)
     return false;
 }
 
+std::string Amplitude_MLA::chooseFilter()
+{
+    // If database access is available, we attempt to find a previously computed MLa
+    // magnitude for the same event and use its value to select an appropriate
+    // prefilter.
+    const auto origin = environment().hypocenter;
+    const auto df = _defaultPreFilter.c_str();
+    if (!origin) {
+        SEISCOMP_DEBUG("No origin in environment, using default filter %s", df);
+        return df;
+    }
+    if (!SCCoreApp) {
+        SEISCOMP_DEBUG("No SCCoreApp available for database access, using default filter %s", df);
+        return df;
+    }
+    const auto db = SCCoreApp->database();
+    if (!db) {
+        SEISCOMP_DEBUG("No SCCoreApp->database() available for database access, using default filter %s", df);
+        return df;
+    }
+    MyQuery query{db};
+
+    const std::string originID = origin->publicID();
+    const auto event = query.getEvent(originID);
+    if (!event) {
+        SEISCOMP_DEBUG("No event found for origin %s, using default filter %s", originID.c_str(), df);
+        return df;
+    }
+
+    const std::string evid = event->publicID();
+    const auto magnitude = query.getMLaForEvent(evid);
+    if (!magnitude) {
+        SEISCOMP_DEBUG("Could not find MLa for event %s, using default filter %s", evid.c_str(), df);
+        return df;
+    }
+
+    const auto magvalue = magnitude->magnitude().value();
+    SEISCOMP_DEBUG("Found existing MLa magnitude %s with value %f", magnitude->publicID().c_str(), magvalue);
+
+    if (magvalue < 4) {
+        return "BW_HP(3, 0.75)";
+    } else if (magvalue < 6) {
+        return "BW_HP(3, 0.5)";
+    } else {
+        return "BW_HP(3, 0.1)";
+    }
+}
+
 bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
         size_t i1, size_t i2,
         size_t si1, size_t si2,
@@ -109,6 +203,9 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
         AmplitudeIndex *dt, AmplitudeValue *amplitude,
         double *period, double *snr)
 {
+    _preFilter = chooseFilter();
+    SEISCOMP_DEBUG("Chose MLa prefilter %s", _preFilter);
+
     bool retVal = Seiscomp::Processing::AmplitudeProcessor_MLv::computeAmplitude(
         data,
         i1, i2,
@@ -117,7 +214,9 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
         dt, amplitude,
         period, snr);
 
-    // If the base class calculation was correct, divide the amplitude value
+    _preFilter = _defaultPreFilter;
+
+    // If the base class calculation succeeded, divide the amplitude value
     // by half to get the zero to peak value.
     if (retVal)
     {

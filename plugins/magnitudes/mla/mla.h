@@ -61,6 +61,7 @@ public:
 protected:
 
     virtual std::string defaultFilter() const { return ""; };
+    std::string chooseFilter();
 
     /*
     Computes the amplitude of data in the range[i1, i2].
@@ -92,6 +93,8 @@ protected:
             double offset,
             AmplitudeIndex *dt, AmplitudeValue *amplitude,
             double *period, double *snr);
+
+    std::string          _defaultPreFilter;
 };
 
 /*
