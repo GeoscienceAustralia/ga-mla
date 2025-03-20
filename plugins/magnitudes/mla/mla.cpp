@@ -204,7 +204,7 @@ bool Amplitude_MLA::computeAmplitude(const Seiscomp::DoubleArray &data,
         double *period, double *snr)
 {
     _preFilter = chooseFilter();
-    SEISCOMP_DEBUG("Chose MLa prefilter %s", _preFilter);
+    SEISCOMP_DEBUG("Chose MLa prefilter %s", _preFilter.c_str());
 
     bool retVal = Seiscomp::Processing::AmplitudeProcessor_MLv::computeAmplitude(
         data,
