@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<seiscomp>
+    <plugin name="eqnamer">
+        <extends>global</extends>
+        <description>
+            NEAC's event naming plugin
+        </description>
+    </plugin>
+</seiscomp>

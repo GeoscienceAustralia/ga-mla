@@ -1,0 +1,19 @@
+SET(PLUGIN_TARGET eqnamer)
+
+SET(
+        PLUGIN_SOURCES
+            eqnamer.cpp
+)
+# SET(
+#         PLUGIN_HEADERS
+#             eqnamer.h
+# )
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/base/main/apps/processing/scevent)
+INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/src/base/main/apps/processing/scevent)
+
+SC_ADD_PLUGIN_LIBRARY(PLUGIN ${PLUGIN_TARGET} "")
+SC_LINK_LIBRARIES_INTERNAL(${PLUGIN_TARGET} evplugin)
+
+FILE(GLOB descs "${CMAKE_CURRENT_SOURCE_DIR}/descriptions/*.xml")
+INSTALL(FILES ${descs} DESTINATION ${SC3_PACKAGE_APP_DESC_DIR})
