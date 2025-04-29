@@ -1,0 +1,21 @@
+[project]
+name = "ga-addons"
+version = "0.1.0"
+description = "Python utilities accompanying the GA seiscomp addons"
+requires-python = ">=3.12"
+dependencies = [
+    "geojson>=3.2.0",
+    "lxml>=5.3.2",
+]
+
+[dependency-groups]
+dev = [
+    "lxml-stubs>=0.5.1",
+]
+
+[tool.pyright]
+pythonVersion = "3.12"
+reportUnusedFunction = false
+typeCheckingMode = "standard"
+venv = ".venv"
+venvPath = "."
