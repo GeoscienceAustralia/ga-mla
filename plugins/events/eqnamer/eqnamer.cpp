@@ -165,16 +165,34 @@ public:
     EQNamer() { }
     bool setup(const Seiscomp::Config::Config& config)
     {
+        std::string citiesPath;
+        try { citiesPath = config.getString("eqnamer.citiesPath"); }
+        catch ( ... ) {
+            SEISCOMP_ERROR("Must configure eqnamer.citiesPath");
+            return false;
+        }
+
+        std::string regionsPath;
+        try { regionsPath = config.getString("eqnamer.regionsPath"); }
+        catch ( ... ) {
+            SEISCOMP_ERROR("Must configure eqnamer.regionsPath");
+            return false;
+        }
+
         XMLArchive ar;
-        if (!ar.open("/home/anthony/data/eqnames/eqnames.xml")) {
-            SEISCOMP_ERROR("EQNamer: Could not find cities.xml");
+        if (!ar.open(citiesPath.c_str())) {
+            SEISCOMP_ERROR("EQNamer: Could not read cities XML from '%s'", citiesPath);
             return false;
         }
         ar >> NAMED_OBJECT("City", _cities);
         ar.close();
         SEISCOMP_INFO("EQNamer: loaded %d cities", _cities.size());
 
-        const Regions* all_regions = Regions::load("/home/anthony/data/eqnames/polygons.geojson");
+        const Regions* all_regions = Regions::load(regionsPath);
+        if (all_regions->featureSet.features().size() == 0) {
+            SEISCOMP_ERROR("EQNamer: no features loaded - is regionsPath set correctly?");
+            return false;
+        }
 
         // Split the featuresets into two collections: the "null_value" polygons where
         // we will name by nearest city, and the other polygons whose names we use.

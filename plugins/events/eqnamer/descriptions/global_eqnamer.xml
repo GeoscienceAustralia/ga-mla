@@ -5,5 +5,21 @@
         <description>
             NEAC's event naming plugin
         </description>
+        <configuration>
+            <group name="eqnamer">
+                <parameter name="citiesPath" type="string">
+                    <description>
+                        Path to an XML file containing a cities dataset, in the same
+                        format as the cities.xml shipping with seiscomp.
+                    </description>
+                </parameter>
+                <parameter name="regionsPath" type="string">
+                    <description>
+                        Path to a GeoJSON or BNA file containing a collection of named
+                        polygons.
+                    </description>
+                </parameter>
+            </group>
+        </configuration>
     </plugin>
 </seiscomp>
