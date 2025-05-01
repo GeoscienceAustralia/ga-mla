@@ -3,6 +3,14 @@
 Various plugins developed for [SeisComP](https://www.seiscomp.de/) by
 Geoscience Australia.
 
+## Plugins
+
+- **mla** is the basic version of our MLa amplitude+magnitude processors.
+- **mlavariants** is the version of MLa that includes a few different variants with
+  different prefilters.
+- **eqnamer** is an scevent plugin that applies NEAC-specific logic to set the region
+  name of earthquakes.
+
 
 ## Building
 
@@ -12,7 +20,7 @@ Geoscience Australia.
   to change the apt-get calls to the appropriate package manager (and
   dependency package names) for your operating system.
 
-- You want to build for SeisComP >= 4.0.0 and Python 3.
+- You want to build for SeisComP >= 5.0.0 and Python 3.
 
 
 ### Process
@@ -40,41 +48,39 @@ Geoscience Australia.
   [compilation instructions](https://github.com/SeisComP/seiscomp/blob/master/README.md#compiling)),
   then you also want
 
-    ```
-    sudo apt-get install -y cmake-curses-gui
-    ```
+  ```
+  sudo apt-get install -y cmake-curses-gui
+  ```
 
   I don't do this and use cmake directly as per my example below.
 
 - Ensure python3 is set as your default system python, e.g. on Ubuntu 18.04:
-    ```
-    sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.6m 3
-    sudo update-alternatives --config python
-    ```
+
+  ```
+  sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.6m 3
+  sudo update-alternatives --config python
+  ```
 
 - Get the SeisComP source code by following the instructions in the seiscomp readme.
 
   If you only want to build the GA plugins, you should just need the `seiscomp` and
   `common` repositories.
 
-- Go to the src/extras directory and clone this repository. (If you're building
-  for SeisComP3 and python2 instead, this should just be src/ instead of
-  src/extras/.)
-
+- Go to the src/extras directory and clone this repository into `ga-addons`.
+- 
 - Return to the top level directory and follow the build instructions in the
   [README](https://github.com/SeisComP/seiscomp/blob/master/README.md) of the
   the [SeisComP](https://github.com/SeisComP/seiscomp.git) repository.
 
   If you only want to build the GA plugins and their dependencies, just use
   cmake to generate the makefiles, and then run `make` in the
-  `src/extras/ga-mla` directory.
+  `src/extras/ga-addons` directory.
 
   This still builds quite a bit of stuff, but does save some time.
 
   I'm not sure if there is an easy way to grap only the files required for the
   GA plugins, everything seems to end up in the directories under the top level
   build directory.
-
 
 - For development, you probably want to run `make install` from the build
   directory to give you a working SeisComP system.
