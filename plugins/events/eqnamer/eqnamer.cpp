@@ -221,7 +221,9 @@ public:
         return true;
     }
 
-    bool process(Event* event, const Journal& journal)
+    bool process(Event* event, const Journal& journal) { return process(event, false, journal); }
+
+    bool process(Event* event, bool isNewEvent, const Journal& journal)
     {
         EventDescription* regionDesc = event->eventDescription(EventDescriptionIndex(REGION_NAME));
         if (regionDesc) {
