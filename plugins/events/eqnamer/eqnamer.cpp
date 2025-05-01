@@ -95,7 +95,7 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
 std::string cityRelativeDescription(CityRel cr)
 {
     int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
-    return Seiscomp::Util::replace("@dist@ km @dir@ of @poi@\n", Resolver(distkm, cr.azi, cr.name));
+    return Seiscomp::Util::replace("@dist@ km @dir@ of @poi@", Resolver(distkm, cr.azi, cr.name));
 }
 
 class EQNamer : public Seiscomp::Client::EventProcessor {
@@ -148,7 +148,7 @@ private:
 
         std::string ret = "";
         for (size_t i = 0; i < count; i++) {
-            ret += cityRelativeDescription(rels[i]);
+            ret += cityRelativeDescription(rels[i]) + "\n";
         }
 
         return ret;
@@ -217,20 +217,17 @@ public:
         SEISCOMP_INFO("EQNamer: loaded %d named regions, %d null regions",
             _namedRegions.featureSet.features().size(), _nullRegions.featureSet.features().size());
 
-        /* for (double x = -175; x < 180; x += 1) { */
-        /*     for (double y = 88; y > -90; y -= 1) { */
-        /*         if (_nameByCityRegion->contains({ y, x })) { */
-        /*             SEISCOMP_INFO("(%0.0f, %0.0f) in null_value", x, y); */
-        /*         } */
-        /*     } */
-        /* } */
+
         /*
-        for (double x = -175; x < 180; x += 10) {
-            SEISCOMP_INFO("-------------------------------------------------------");
-            for (double y = 88; y > -90; y -= 11) {
-                const GeoFeature* region = _regions->find(y, x);
-                if (region) {
+        for (double x = 110; x < 150; x += 1) {
+            for (double y = -10; y > -45; y -= 1) {
+                if (_nullRegions.find(y, x)) {
+                    auto name = nameByNearestCity(y, x);
+                    SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, name);
+                } else if (auto region = _namedRegions.find(y, x)) {
                     SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, region->name().c_str());
+                } else {
+                    SEISCOMP_INFO("(%0.0f, %0.0f): NOT IN ANY POLYGON", x, y);
                 }
             }
         }
