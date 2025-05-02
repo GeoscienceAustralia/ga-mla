@@ -28,10 +28,12 @@ using Seiscomp::Core::toString;
 using Seiscomp::DataModel::Event;
 using Seiscomp::DataModel::EventDescription;
 using Seiscomp::DataModel::EventDescriptionIndex;
+using Seiscomp::DataModel::FINAL;
 using Seiscomp::DataModel::NEAREST_CITIES;
 using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
 using Seiscomp::DataModel::REGION_NAME;
+using Seiscomp::DataModel::REVIEWED;
 using Seiscomp::Geo::GeoFeature;
 using Seiscomp::IO::XMLArchive;
 using Seiscomp::Math::Geo::CityD;
@@ -92,17 +94,13 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     }
 };
 
-std::string cityRelativeDescription(CityRel cr)
-{
-    int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
-    return Seiscomp::Util::replace("@dist@ km @dir@ of @poi@", Resolver(distkm, cr.azi, cr.name));
-}
-
 class EQNamer : public Seiscomp::Client::EventProcessor {
 private:
     std::vector<CityD> _cities;
     Regions _namedRegions;
     Regions _nullRegions;
+    std::string _approximateMessage;
+    std::string _preciseMessage;
 
     std::string nameEvent(Event* event)
     {
@@ -111,9 +109,12 @@ private:
         const double lon = o->longitude().value();
 
         if (_nullRegions.find(lat, lon)) {
+            const auto status = o->evaluationStatus();
+            const bool precise = status == REVIEWED || status == FINAL;
             SEISCOMP_INFO(
-                "EQNamer::process(%s): Naming by nearest city", event->publicID().c_str());
-            return nameByNearestCity(lat, lon);
+                "EQNamer::process(%s): Status is %s, naming by nearest city with precise=%s",
+                event->publicID().c_str(), status.toString(), precise ? "true" : "false");
+            return nameByNearestCity(lat, lon, precise);
         }
 
         SEISCOMP_INFO("EQNamer::process(%s): Naming by polygon", event->publicID().c_str());
@@ -148,17 +149,24 @@ private:
 
         std::string ret = "";
         for (size_t i = 0; i < count; i++) {
-            ret += cityRelativeDescription(rels[i]) + "\n";
+            ret += cityRelativeDescription(rels[i], true) + "\n";
         }
 
         return ret;
     }
 
-    std::string nameByNearestCity(double lat, double lon)
+    std::string cityRelativeDescription(CityRel cr, bool precise)
+    {
+        int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
+        const std::string& templ = precise ? _preciseMessage : _approximateMessage;
+        return Seiscomp::Util::replace(templ, Resolver(distkm, cr.azi, cr.name));
+    }
+
+    std::string nameByNearestCity(double lat, double lon, bool precise)
     {
         double dist, azi;
         const CityD* city = nearestCity(lat, lon, 9999999, 0, _cities, &dist, &azi);
-        return cityRelativeDescription({ dist, azi, city->name() });
+        return cityRelativeDescription({ dist, azi, city->name() }, precise);
     }
 
 public:
@@ -166,17 +174,31 @@ public:
     bool setup(const Seiscomp::Config::Config& config)
     {
         std::string citiesPath;
-        try { citiesPath = config.getString("eqnamer.citiesPath"); }
-        catch ( ... ) {
+        try {
+            citiesPath = config.getString("eqnamer.citiesPath");
+        } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.citiesPath");
             return false;
         }
 
         std::string regionsPath;
-        try { regionsPath = config.getString("eqnamer.regionsPath"); }
-        catch ( ... ) {
+        try {
+            regionsPath = config.getString("eqnamer.regionsPath");
+        } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.regionsPath");
             return false;
+        }
+
+        try {
+            _approximateMessage = config.getString("eqnamer.approximateMessage");
+        } catch (...) {
+            _approximateMessage = "Near @poi@";
+        }
+
+        try {
+            _preciseMessage = config.getString("eqnamer.preciseMessage");
+        } catch (...) {
+            _preciseMessage = "@dist@km @dir@ of @poi@";
         }
 
         XMLArchive ar;
@@ -217,7 +239,6 @@ public:
         SEISCOMP_INFO("EQNamer: loaded %d named regions, %d null regions",
             _namedRegions.featureSet.features().size(), _nullRegions.featureSet.features().size());
 
-
         /*
         for (double x = 110; x < 150; x += 1) {
             for (double y = -10; y > -45; y -= 1) {
@@ -236,6 +257,7 @@ public:
         return true;
     }
 
+    // isNewEvent added in seiscomp7, keep this old signature for compatibility
     bool process(Event* event, const Journal& journal) { return process(event, false, journal); }
 
     bool process(Event* event, bool isNewEvent, const Journal& journal)

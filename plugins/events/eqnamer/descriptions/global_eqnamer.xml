@@ -19,6 +19,20 @@
                         polygons.
                     </description>
                 </parameter>
+                <parameter name="approximateMessage" type="string">
+                    <description>
+                        Message conversion string that converts a POI/city into the
+                        region name for non-reviewed events. There are different
+                        placeholders that can be used: @dist@, @dir@ and @poi@.
+                    </description>
+                </parameter>
+                <parameter name="preciseMessage" type="string">
+                    <description>
+                        Message conversion string that converts a POI/city into the
+                        region name for reviewed/final events. There are different
+                        placeholders that can be used: @dist@, @dir@ and @poi@.
+                    </description>
+                </parameter>
             </group>
         </configuration>
     </plugin>
