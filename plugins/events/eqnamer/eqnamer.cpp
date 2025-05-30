@@ -1,3 +1,4 @@
+#include "seiscomp/core/exceptions.h"
 #include <vector>
 #define SEISCOMP_COMPONENT EQNAMER
 
@@ -109,11 +110,19 @@ private:
         const double lon = o->longitude().value();
 
         if (_nullRegions.find(lat, lon)) {
-            const auto status = o->evaluationStatus();
-            const bool precise = status == REVIEWED || status == FINAL;
+            bool precise;
+            std::string statusStr;
+            try {
+                const auto status = o->evaluationStatus();
+                precise = status == REVIEWED || status == FINAL;
+                statusStr = status.toString();
+            } catch (...) {
+                precise = false;
+                statusStr = "blank";
+            }
             SEISCOMP_INFO(
                 "EQNamer::process(%s): Status is %s, naming by nearest city with precise=%s",
-                event->publicID().c_str(), status.toString(), precise ? "true" : "false");
+                event->publicID().c_str(), statusStr, precise ? "true" : "false");
             return nameByNearestCity(lat, lon, precise);
         }
 
@@ -169,9 +178,7 @@ private:
         return cityRelativeDescription({ dist, azi, city->name() }, precise);
     }
 
-public:
-    EQNamer() { }
-    bool setup(const Seiscomp::Config::Config& config)
+    bool _setup(const Seiscomp::Config::Config& config)
     {
         std::string citiesPath;
         try {
@@ -257,15 +264,26 @@ public:
         return true;
     }
 
-    // isNewEvent added in seiscomp7, keep this old signature for compatibility
-    bool process(Event* event, const Journal& journal) { return process(event, false, journal); }
-
-    bool process(Event* event, bool isNewEvent, const Journal& journal)
+public:
+    EQNamer() { }
+    bool setup(const Seiscomp::Config::Config& config)
     {
+        try {
+            return _setup(config);
+        } catch (Seiscomp::Core::GeneralException& ex) {
+            SEISCOMP_ERROR("Unexpected exception initializing eqnamer: %s", ex.what());
+            return false;
+        } catch (...) {
+            SEISCOMP_ERROR("Unknown exception initializing eqnamer");
+            return false;
+        }
+    }
+
+    bool _process(Event* event, bool isNewEvent, const Journal& journal) {
         EventDescription* regionDesc = event->eventDescription(EventDescriptionIndex(REGION_NAME));
         if (regionDesc) {
             SEISCOMP_INFO("EQNamer::process(%s): existing region name is '%s'",
-                event->publicID().c_str(), regionDesc->text().c_str());
+                          event->publicID().c_str(), regionDesc->text().c_str());
         } else {
             SEISCOMP_INFO(
                 "EQNamer::process(%s): no existing region name", event->publicID().c_str());
@@ -289,6 +307,22 @@ public:
         nearestCities->setText(nc);
 
         return false; // true means event needs updating
+    }
+
+    // isNewEvent added in seiscomp7, keep this old signature for compatibility
+    bool process(Event* event, const Journal& journal) { return process(event, false, journal); }
+
+    bool process(Event* event, bool isNewEvent, const Journal& journal)
+    {
+        try {
+            return _process(event, isNewEvent, journal);
+        } catch (Seiscomp::Core::GeneralException& ex) {
+            SEISCOMP_ERROR("Unexpected exception processing event: %s", ex.what());
+            return false;
+        } catch (...) {
+            SEISCOMP_ERROR("Unknown exception processing event");
+            return false;
+        }
     }
 };
 
