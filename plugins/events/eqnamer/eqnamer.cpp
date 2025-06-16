@@ -30,6 +30,7 @@ using Seiscomp::DataModel::Event;
 using Seiscomp::DataModel::EventDescription;
 using Seiscomp::DataModel::EventDescriptionIndex;
 using Seiscomp::DataModel::FINAL;
+using Seiscomp::DataModel::Magnitude;
 using Seiscomp::DataModel::NEAREST_CITIES;
 using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
@@ -323,6 +324,11 @@ public:
             SEISCOMP_ERROR("Unknown exception processing event");
             return false;
         }
+    }
+
+    Magnitude *preferredMagnitude(const Origin *origin)
+    {
+        return nullptr;
     }
 };
 
