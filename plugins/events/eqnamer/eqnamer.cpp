@@ -20,6 +20,7 @@
 #include <seiscomp/math/geo.h>
 #include <seiscomp/plugins/events/eventprocessor.h>
 #include <seiscomp/processing/regions.h>
+#include <seiscomp/system/environment.h>
 #include <seiscomp/utils/replace.h>
 
 #include <algorithm>
@@ -35,6 +36,7 @@ using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
 using Seiscomp::DataModel::REGION_NAME;
 using Seiscomp::DataModel::REVIEWED;
+using Seiscomp::Environment;
 using Seiscomp::Geo::GeoFeature;
 using Seiscomp::IO::XMLArchive;
 using Seiscomp::Math::Geo::CityD;
@@ -182,7 +184,7 @@ private:
     {
         std::string citiesPath;
         try {
-            citiesPath = config.getString("eqnamer.citiesPath");
+            citiesPath = Environment::Instance()->absolutePath(config.getString("eqnamer.citiesPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.citiesPath");
             return false;
@@ -190,7 +192,7 @@ private:
 
         std::string regionsPath;
         try {
-            regionsPath = config.getString("eqnamer.regionsPath");
+            regionsPath = Environment::Instance()->absolutePath(config.getString("eqnamer.regionsPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.regionsPath");
             return false;
