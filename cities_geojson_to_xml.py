@@ -18,7 +18,7 @@ def geojson_to_xml(collection: geojson.FeatureCollection) -> bytes:
             city.attrib["category"] = "C"
 
         city.attrib["countryID"] = props["Country"]
-        etree.SubElement(city, "name").text = props["name"]
+        etree.SubElement(city, "name").text = props["FINAL_name"]
         etree.SubElement(city, "population").text = str(props["population"])
         etree.SubElement(city, "latitude").text = str(lat)
         etree.SubElement(city, "longitude").text = str(lon)

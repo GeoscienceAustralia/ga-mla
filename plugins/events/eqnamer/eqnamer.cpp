@@ -20,6 +20,7 @@
 #include <seiscomp/math/geo.h>
 #include <seiscomp/plugins/events/eventprocessor.h>
 #include <seiscomp/processing/regions.h>
+#include <seiscomp/system/environment.h>
 #include <seiscomp/utils/replace.h>
 
 #include <algorithm>
@@ -36,6 +37,7 @@ using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
 using Seiscomp::DataModel::REGION_NAME;
 using Seiscomp::DataModel::REVIEWED;
+using Seiscomp::Environment;
 using Seiscomp::Geo::GeoFeature;
 using Seiscomp::IO::XMLArchive;
 using Seiscomp::Math::Geo::CityD;
@@ -96,6 +98,18 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     }
 };
 
+const std::string getFeatureName(const GeoFeature& f) {
+    const auto& attrs = f.attributes();
+    auto it = attrs.find("Primary_ID");
+    if (it == attrs.end()) {
+        it = attrs.find("name");
+    }
+    if (it != attrs.end()) {
+        return (*it).second;
+    }
+    return "";
+}
+
 class EQNamer : public Seiscomp::Client::EventProcessor {
 private:
     std::vector<CityD> _cities;
@@ -129,7 +143,7 @@ private:
 
         SEISCOMP_INFO("EQNamer::process(%s): Naming by polygon", event->publicID().c_str());
         if (auto region = _namedRegions.find(lat, lon)) {
-            return region->name();
+            return getFeatureName(*region);
         } else {
             SEISCOMP_ERROR("EQNamer::process(%s): No polygon containing %0.1f, %0.1f",
                 event->publicID().c_str(), lon, lat);
@@ -183,7 +197,7 @@ private:
     {
         std::string citiesPath;
         try {
-            citiesPath = config.getString("eqnamer.citiesPath");
+            citiesPath = Environment::Instance()->absolutePath(config.getString("eqnamer.citiesPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.citiesPath");
             return false;
@@ -191,7 +205,7 @@ private:
 
         std::string regionsPath;
         try {
-            regionsPath = config.getString("eqnamer.regionsPath");
+            regionsPath = Environment::Instance()->absolutePath(config.getString("eqnamer.regionsPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.regionsPath");
             return false;
@@ -227,10 +241,13 @@ private:
         // Split the featuresets into two collections: the "null_value" polygons where
         // we will name by nearest city, and the other polygons whose names we use.
         for (GeoFeature* f : all_regions->featureSet.features()) {
-            if (f->name() == "null_value") {
-                _nullRegions.featureSet.addFeature(f);
-            } else {
-                _namedRegions.featureSet.addFeature(f);
+            const std::string name = getFeatureName(*f);
+            if (!name.empty()) {
+                if (name == "null_value") {
+                    _nullRegions.featureSet.addFeature(f);
+                } else {
+                    _namedRegions.featureSet.addFeature(f);
+                }
             }
         }
 
@@ -251,10 +268,10 @@ private:
         for (double x = 110; x < 150; x += 1) {
             for (double y = -10; y > -45; y -= 1) {
                 if (_nullRegions.find(y, x)) {
-                    auto name = nameByNearestCity(y, x);
+                    auto name = nameByNearestCity(y, x, true);
                     SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, name);
                 } else if (auto region = _namedRegions.find(y, x)) {
-                    SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, region->name().c_str());
+                    SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, getFeatureName(*region).c_str());
                 } else {
                     SEISCOMP_INFO("(%0.0f, %0.0f): NOT IN ANY POLYGON", x, y);
                 }
