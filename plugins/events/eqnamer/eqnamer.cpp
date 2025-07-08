@@ -313,16 +313,25 @@ public:
             "EQNamer::process(%s): setting region name to '%s'", event->publicID().c_str(), name);
         regionDesc->setText(name);
 
-        EventDescription* nearestCities
-            = event->eventDescription(EventDescriptionIndex(NEAREST_CITIES));
-        if (!nearestCities) {
-            nearestCities = new EventDescription("", NEAREST_CITIES);
-            event->add(nearestCities);
+        bool reviewed = false;
+        try {
+            OriginPtr o = Origin::Find(event->preferredOriginID());
+            const auto status = o->evaluationStatus();
+            reviewed = status == REVIEWED || status == FINAL;
+        } catch (...) {}
+
+        if (reviewed) {
+            EventDescription* nearestCities
+                = event->eventDescription(EventDescriptionIndex(NEAREST_CITIES));
+            if (!nearestCities) {
+                nearestCities = new EventDescription("", NEAREST_CITIES);
+                event->add(nearestCities);
+            }
+            const std::string nc = nearbyCitiesString(event);
+            SEISCOMP_INFO(
+                "EQNamer::process(%s): setting nearby cities to:\n%s", event->publicID().c_str(), nc);
+            nearestCities->setText(nc);
         }
-        const std::string nc = nearbyCitiesString(event);
-        SEISCOMP_INFO(
-            "EQNamer::process(%s): setting nearby cities to:\n%s", event->publicID().c_str(), nc);
-        nearestCities->setText(nc);
 
         return false; // true means event needs updating
     }
