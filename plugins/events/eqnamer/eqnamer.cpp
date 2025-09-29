@@ -1,9 +1,8 @@
-#include "seiscomp/core/exceptions.h"
-#include <vector>
 #define SEISCOMP_COMPONENT EQNAMER
 
 #include <seiscomp/config/config.h>
 #include <seiscomp/config/strings.h>
+#include <seiscomp/core/exceptions.h>
 #include <seiscomp/core/plugin.h>
 #include <seiscomp/core/strings.h>
 #include <seiscomp/datamodel/comment.h>
@@ -26,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 
+using Seiscomp::Environment;
 using Seiscomp::Core::toString;
 using Seiscomp::DataModel::Event;
 using Seiscomp::DataModel::EventDescription;
@@ -36,7 +36,6 @@ using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
 using Seiscomp::DataModel::REGION_NAME;
 using Seiscomp::DataModel::REVIEWED;
-using Seiscomp::Environment;
 using Seiscomp::Geo::GeoFeature;
 using Seiscomp::IO::XMLArchive;
 using Seiscomp::Math::Geo::CityD;
@@ -97,6 +96,26 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     }
 };
 
+const std::string getAttr(const GeoFeature& f, const std::string& key) {
+    const auto& attrs = f.attributes();
+    auto it = attrs.find(key);
+    if (it != attrs.end()) {
+        return it->second;
+    }
+    return "";
+}
+
+std::string crustTypePrefix(const GeoFeature& f) {
+    const std::string t = getAttr(f, "Crust_Type");
+    if (t == "Coastal") {
+        return "Coastal, ";
+    } else if (t == "Oceanic") {
+        return "Offshore, ";
+    } else {
+        return "";
+    }
+}
+
 const std::string getFeatureName(const GeoFeature& f) {
     const auto& attrs = f.attributes();
     auto it = attrs.find("Primary_ID");
@@ -110,20 +129,25 @@ const std::string getFeatureName(const GeoFeature& f) {
 }
 
 class EQNamer : public Seiscomp::Client::EventProcessor {
-private:
+protected:
     std::vector<CityD> _cities;
-    Regions _namedRegions;
-    Regions _nullRegions;
+    Regions _staticRegions;
+    Regions _dynamicRegions;
     std::string _approximateMessage;
     std::string _preciseMessage;
 
     std::string nameEvent(Event* event)
     {
         OriginPtr o = Origin::Find(event->preferredOriginID());
+        return nameOrigin(o.get(), event->publicID().c_str());
+    }
+
+    std::string nameOrigin(Origin* o, const char* const evid)
+    {
         const double lat = o->latitude().value();
         const double lon = o->longitude().value();
 
-        if (_nullRegions.find(lat, lon)) {
+        if (const auto f = _dynamicRegions.find(lat, lon)) {
             bool precise;
             std::string statusStr;
             try {
@@ -135,17 +159,17 @@ private:
                 statusStr = "blank";
             }
             SEISCOMP_INFO(
-                "EQNamer::process(%s): Status is %s, naming by nearest city with precise=%s",
-                event->publicID().c_str(), statusStr, precise ? "true" : "false");
-            return nameByNearestCity(lat, lon, precise);
+                "EQNamer::process(%s): Status is %s, naming by nearest city with precise=%s", evid,
+                statusStr, precise ? "true" : "false");
+            return crustTypePrefix(*f) + nameByNearestCity(lat, lon, precise);
         }
 
-        SEISCOMP_INFO("EQNamer::process(%s): Naming by polygon", event->publicID().c_str());
-        if (auto region = _namedRegions.find(lat, lon)) {
+        SEISCOMP_INFO("EQNamer::process(%s): Naming by polygon", evid);
+        if (auto region = _staticRegions.find(lat, lon)) {
             return getFeatureName(*region);
         } else {
-            SEISCOMP_ERROR("EQNamer::process(%s): No polygon containing %0.1f, %0.1f",
-                event->publicID().c_str(), lon, lat);
+            SEISCOMP_ERROR(
+                "EQNamer::process(%s): No polygon containing %0.1f, %0.1f", evid, lon, lat);
 
             return "Unknown Region";
         }
@@ -237,15 +261,16 @@ private:
             return false;
         }
 
-        // Split the featuresets into two collections: the "null_value" polygons where
+        // Split the featuresets into two collections: the dynamic polygons where
         // we will name by nearest city, and the other polygons whose names we use.
         for (GeoFeature* f : all_regions->featureSet.features()) {
-            const std::string name = getFeatureName(*f);
-            if (!name.empty()) {
-                if (name == "null_value") {
-                    _nullRegions.featureSet.addFeature(f);
+            const auto& attrs = f->attributes();
+            auto it = attrs.find("Dynamic");
+            if (it != attrs.end()) {
+                if (it->second == "Dynamic") {
+                    _dynamicRegions.featureSet.addFeature(f);
                 } else {
-                    _namedRegions.featureSet.addFeature(f);
+                    _staticRegions.featureSet.addFeature(f);
                 }
             }
         }
@@ -260,23 +285,8 @@ private:
         // all_regions vector for now.
         const_cast<std::vector<GeoFeature*>&>(all_regions->featureSet.features()).clear();
 
-        SEISCOMP_INFO("EQNamer: loaded %d named regions, %d null regions",
-            _namedRegions.featureSet.features().size(), _nullRegions.featureSet.features().size());
-
-        /*
-        for (double x = 110; x < 150; x += 1) {
-            for (double y = -10; y > -45; y -= 1) {
-                if (_nullRegions.find(y, x)) {
-                    auto name = nameByNearestCity(y, x, true);
-                    SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, name);
-                } else if (auto region = _namedRegions.find(y, x)) {
-                    SEISCOMP_INFO("(%0.0f, %0.0f): %s", x, y, getFeatureName(*region).c_str());
-                } else {
-                    SEISCOMP_INFO("(%0.0f, %0.0f): NOT IN ANY POLYGON", x, y);
-                }
-            }
-        }
-        */
+        SEISCOMP_INFO("EQNamer: loaded %d static regions, %d dynamic regions",
+            _staticRegions.featureSet.features().size(), _dynamicRegions.featureSet.features().size());
 
         return true;
     }
