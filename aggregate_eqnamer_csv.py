@@ -76,6 +76,10 @@ def main():
     for (old_name, init_name), g in df.groupby(
         ["oldRegionName", "initialRegionName"], sort=False
     ):
+        if old_name == init_name or old_name == f"Near {init_name}":
+            # Hasn't changed, exclude it
+            continue
+
         count = int(len(g))
 
         # Sample up to 100 points at random for the GeoJSON payload
