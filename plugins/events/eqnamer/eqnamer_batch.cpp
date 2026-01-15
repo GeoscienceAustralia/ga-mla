@@ -1,43 +1,55 @@
 #include "eqnamer.cpp"
 #include "seiscomp/config/config.h"
 #include "seiscomp/datamodel/types.h"
-#include <iostream>
-#include <ostream>
-#include <seiscomp/datamodel/event.h>
 #include <seiscomp/datamodel/origin.h>
+
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "rapidcsv.h"
 
 using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::EvaluationStatus;
 using Seiscomp::DataModel::REVIEWED;
-using std::cout;
-using std::endl;
-using std::cerr;
+using Seiscomp::DataModel::PRELIMINARY;
 
 class TestEQNamer : EQNamer {
 public:
-    void test()
-    {
-        Seiscomp::Config::Config cfg;
-        cfg.readConfig("/opt/seiscomp/etc/scevent.cfg");
-        cerr << "citiesPath: " << cfg.getString("eqnamer.citiesPath") << endl;
+  void test() {
+    Seiscomp::Config::Config cfg;
+    cfg.readConfig("/opt/seiscomp/etc/scevent.cfg");
+    _setup(cfg);
 
-        _setup(cfg);
-        cout << "longitude,latitude,name" << endl;
-        for (double x = -179; x < 180; x += 1) {
-            for (double y = 80; y > -80; y -= 1) {
-                Origin o("mypublicidsux");
-                o.setLongitude(x);
-                o.setLatitude(y);
-                o.setEvaluationStatus(EvaluationStatus(REVIEWED));
-                auto name = nameOrigin(&o, "testorigin");
-                cout << x << "," << y << ",\"" << name << "\"" << endl;
-            }
-        }
+    rapidcsv::Document doc(std::cin, rapidcsv::LabelParams(0, -1));
+
+    auto lons = doc.GetColumn<double>("longitude");
+    auto lats = doc.GetColumn<double>("latitude");
+
+    std::vector<std::string> initialNames;
+    std::vector<std::string> finalNames;
+    initialNames.reserve(lons.size());
+    finalNames.reserve(lons.size());
+
+    for (size_t i = 0; i < lons.size(); ++i) {
+      Origin o("stdin-row");
+      o.setLongitude(lons[i]);
+      o.setLatitude(lats[i]);
+
+      o.setEvaluationStatus(EvaluationStatus(PRELIMINARY));
+      initialNames.push_back(nameOrigin(&o, "batch"));
+
+      o.setEvaluationStatus(EvaluationStatus(REVIEWED));
+      finalNames.push_back(nameOrigin(&o, "batch"));
     }
+
+    doc.InsertColumn(doc.GetColumnNames().size(), initialNames, "initialRegionName");
+    doc.InsertColumn(doc.GetColumnNames().size(), finalNames, "finalRegionName");
+    doc.Save(std::cout);
+  }
 };
 
-int main(int argc, char** argv)
-{
-    TestEQNamer().test();
-    return 0;
+int main() {
+  TestEQNamer().test();
+  return 0;
 }
