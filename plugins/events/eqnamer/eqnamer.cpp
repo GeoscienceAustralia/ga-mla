@@ -329,17 +329,28 @@ public:
             reviewed = status == REVIEWED || status == FINAL;
         } catch (...) {}
 
+        EventDescription* nearestCities
+            = event->eventDescription(EventDescriptionIndex(NEAREST_CITIES));
         if (reviewed) {
-            EventDescription* nearestCities
-                = event->eventDescription(EventDescriptionIndex(NEAREST_CITIES));
-            if (!nearestCities) {
-                nearestCities = new EventDescription("", NEAREST_CITIES);
-                event->add(nearestCities);
-            }
             const std::string nc = nearbyCitiesString(event);
-            SEISCOMP_INFO(
-                "EQNamer::process(%s): setting nearby cities to:\n%s", event->publicID().c_str(), nc);
-            nearestCities->setText(nc);
+            if (!nearestCities) {
+                SEISCOMP_INFO("EQNamer::process(%s): adding new nearest cities:\n%s", event->publicID().c_str(), nc);
+                nearestCities = new EventDescription(nc, NEAREST_CITIES);
+                if (!event->add(nearestCities)) {
+                    SEISCOMP_ERROR("EQNamer::process(%s): error adding nearby cities description to event!", event->publicID().c_str());
+                }
+            } else {
+                SEISCOMP_INFO("EQNamer::process(%s): updating nearby cities:\n%s", event->publicID().c_str(), nc);
+                nearestCities->setText(nc);
+                nearestCities->update();
+            }
+        } else {
+            if (nearestCities) {
+                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, removing existing nearby cities", event->publicID().c_str());
+                nearestCities->detach();
+            } else {
+                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, not setting nearby cities", event->publicID().c_str());
+            }
         }
 
         return false; // true means event needs updating
