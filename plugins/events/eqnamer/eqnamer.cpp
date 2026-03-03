@@ -27,11 +27,11 @@
 
 using Seiscomp::Environment;
 using Seiscomp::Core::toString;
+using Seiscomp::DataModel::Comment;
 using Seiscomp::DataModel::Event;
 using Seiscomp::DataModel::EventDescription;
 using Seiscomp::DataModel::EventDescriptionIndex;
 using Seiscomp::DataModel::FINAL;
-using Seiscomp::DataModel::NEAREST_CITIES;
 using Seiscomp::DataModel::Origin;
 using Seiscomp::DataModel::OriginPtr;
 using Seiscomp::DataModel::REGION_NAME;
@@ -329,27 +329,36 @@ public:
             reviewed = status == REVIEWED || status == FINAL;
         } catch (...) {}
 
-        EventDescription* nearestCities
-            = event->eventDescription(EventDescriptionIndex(NEAREST_CITIES));
+        Comment* nearbyPlaces = NULL;
+        for (size_t i = 0; i < event->commentCount(); i++) {
+            auto comment = event->comment(i);
+            if (comment->id() == "nearby places") {
+                nearbyPlaces = comment;
+                break;
+            }
+        }
+
         if (reviewed) {
             const std::string nc = nearbyCitiesString(event);
-            if (!nearestCities) {
-                SEISCOMP_INFO("EQNamer::process(%s): adding new nearest cities:\n%s", event->publicID().c_str(), nc);
-                nearestCities = new EventDescription(nc, NEAREST_CITIES);
-                if (!event->add(nearestCities)) {
-                    SEISCOMP_ERROR("EQNamer::process(%s): error adding nearby cities description to event!", event->publicID().c_str());
+            if (!nearbyPlaces) {
+                SEISCOMP_INFO("EQNamer::process(%s): adding new nearby places:\n%s", event->publicID().c_str(), nc);
+                nearbyPlaces = new Comment;
+                nearbyPlaces->setId("nearby places");
+                nearbyPlaces->setText(nc);
+                if (!event->add(nearbyPlaces)) {
+                    SEISCOMP_ERROR("EQNamer::process(%s): error adding nearby places comment to event!", event->publicID().c_str());
                 }
             } else {
-                SEISCOMP_INFO("EQNamer::process(%s): updating nearby cities:\n%s", event->publicID().c_str(), nc);
-                nearestCities->setText(nc);
-                nearestCities->update();
+                SEISCOMP_INFO("EQNamer::process(%s): updating nearby places:\n%s", event->publicID().c_str(), nc);
+                nearbyPlaces->setText(nc);
+                nearbyPlaces->update();
             }
         } else {
-            if (nearestCities) {
-                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, removing existing nearby cities", event->publicID().c_str());
-                nearestCities->detach();
+            if (nearbyPlaces) {
+                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, removing existing nearby places", event->publicID().c_str());
+                nearbyPlaces->detach();
             } else {
-                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, not setting nearby cities", event->publicID().c_str());
+                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, not setting nearby places", event->publicID().c_str());
             }
         }
 
