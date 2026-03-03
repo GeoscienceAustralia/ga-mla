@@ -41,7 +41,7 @@ using Seiscomp::IO::XMLArchive;
 using Seiscomp::Math::Geo::CityD;
 using Seiscomp::Processing::Regions;
 
-ADD_SC_PLUGIN("Earthquake Namer", "Geoscience Australia", 0, 0, 1)
+ADD_SC_PLUGIN("Earthquake Namer", "Anthony Carapetis <anthony.carapetis@ga.gov.au>", 0, 0, 2)
 
 struct CityRel {
     double distDeg;
