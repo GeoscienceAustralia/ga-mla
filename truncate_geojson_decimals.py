@@ -2,6 +2,9 @@
 
 import sys
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def trunc(x):
@@ -13,8 +16,21 @@ def trunc(x):
 
 
 data = json.load(sys.stdin)
+fs = []
 for feature in data["features"]:
-    feature["geometry"]["coordinates"] = [
-        trunc(x) for x in feature["geometry"]["coordinates"]
-    ]
-json.dump(data, sys.stdout)
+    try:
+        fs.append(
+            {
+                **feature,
+                "geometry": {
+                    **feature["geometry"],
+                    "coordinates": [
+                        trunc(x) for x in feature["geometry"]["coordinates"]
+                    ],
+                },
+            }
+        )
+    except TypeError:
+        logger.exception(f"Error processing {feature.get('properties')}")
+        logger.error("Skipping this polygon and and continuing.")
+json.dump({**data, "features": fs}, sys.stdout)

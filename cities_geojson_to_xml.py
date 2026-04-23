@@ -6,6 +6,9 @@ Usage: ./cities_geojson_to_xml.py <eqnames_points.json >eqnames.xml"""
 from lxml import etree
 import sys
 import geojson
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def geojson_to_xml(collection: geojson.FeatureCollection) -> bytes:
@@ -17,8 +20,15 @@ def geojson_to_xml(collection: geojson.FeatureCollection) -> bytes:
         if props["Type"] == "capital":
             city.attrib["category"] = "C"
 
-        city.attrib["countryID"] = props["Country"]
-        etree.SubElement(city, "name").text = props["FINAL_name"]
+        if country := str(props.get("Country") or "").strip():
+            city.attrib["countryID"] = country
+
+        name = props["name"]
+        if country == "Australia":
+            state = str(props.get("State") or "").strip()
+            if state:
+                name += f", {state}"
+        etree.SubElement(city, "name").text = name
         etree.SubElement(city, "population").text = str(props["population"])
         etree.SubElement(city, "latitude").text = str(lat)
         etree.SubElement(city, "longitude").text = str(lon)
