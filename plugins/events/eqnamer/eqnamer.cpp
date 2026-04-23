@@ -1,5 +1,8 @@
 #define SEISCOMP_COMPONENT EQNAMER
 
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/trim.hpp>
+
 #include <seiscomp/config/config.h>
 #include <seiscomp/config/strings.h>
 #include <seiscomp/core/exceptions.h>
@@ -48,16 +51,22 @@ struct CityRel {
     double distDeg;
     double azi;
     std::string name;
+    std::string country;
 };
 
 struct Resolver : public Seiscomp::Util::VariableResolver {
     const double& _dist;
     const std::string& _name;
+    const std::string& _poiCountry;
+    const std::string& _epiCountry;
     std::string _dir;
 
-    Resolver(const double& dist, const double& azi, const std::string& name)
+    Resolver(const double& dist, const double& azi, const std::string& name,
+        const std::string& poiCountry, const std::string& epiCountry)
         : _dist(dist)
         , _name(name)
+        , _poiCountry(poiCountry)
+        , _epiCountry(epiCountry)
     {
         if (azi < 22.5 || azi > 360.0 - 22.5)
             _dir = "N";
@@ -90,6 +99,10 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
             variable = _dir;
         else if (variable == "poi")
             variable = _name;
+        else if (variable == "poi_country")
+            variable = _poiCountry;
+        else if (variable == "epi_country")
+            variable = _epiCountry;
         else
             return false;
 
@@ -97,7 +110,8 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     }
 };
 
-const std::string getAttr(const GeoFeature& f, const std::string& key) {
+const std::string getAttr(const GeoFeature& f, const std::string& key)
+{
     const auto& attrs = f.attributes();
     auto it = attrs.find(key);
     if (it != attrs.end()) {
@@ -106,36 +120,85 @@ const std::string getAttr(const GeoFeature& f, const std::string& key) {
     return "";
 }
 
-std::string crustTypePrefix(const GeoFeature& f) {
+std::string crustTypeLabel(const GeoFeature& f)
+{
     const std::string t = getAttr(f, "Crust_Type");
-    if (t == "Coastal") {
-        return "Coastal, ";
-    } else if (t == "Oceanic") {
-        return "Offshore, ";
-    } else {
-        return "";
-    }
-}
-
-const std::string getFeatureName(const GeoFeature& f) {
-    const auto& attrs = f.attributes();
-    auto it = attrs.find("Primary_ID");
-    if (it == attrs.end()) {
-        it = attrs.find("name");
-    }
-    if (it != attrs.end()) {
-        return (*it).second;
-    }
+    if (t == "Coastal")
+        return "Coastal";
+    else if (t == "Oceanic")
+        return "Offshore";
     return "";
 }
+
+static std::string getFeatureName(const GeoFeature& f)
+{
+    const auto& attrs = f.attributes();
+    auto it = attrs.find("Primary_ID");
+    if (it == attrs.end())
+        it = attrs.find("name");
+    if (it != attrs.end())
+        return it->second;
+    return "";
+}
+
+
+
+struct TemplatePair {
+    std::string approximate;
+    std::string precise;
+};
+
+struct TemplateSet {
+    TemplatePair homeCountry;
+    TemplatePair sameCountry;
+    TemplatePair differentCountry;
+};
 
 class EQNamer : public Seiscomp::Client::EventProcessor {
 protected:
     std::vector<CityD> _cities;
     Regions _staticRegions;
     Regions _dynamicRegions;
-    std::string _approximateMessage;
-    std::string _preciseMessage;
+    Regions _countries;
+
+    std::string _homeCountry;
+    TemplateSet _templates;
+
+    static std::string getStringOrDefault(
+        const Seiscomp::Config::Config& config, const std::string& key, const std::string& def)
+    {
+        try {
+            return config.getString(key);
+        } catch (...) {
+            return def;
+        }
+    }
+
+    std::string countryFor(double lat, double lon) const
+    {
+        if (_countries.featureSet.features().empty())
+            return "";
+        if (auto f = _countries.find(lat, lon))
+            return getFeatureName(*f);
+        return "";
+    }
+
+    const std::string& selectTemplate(
+        bool precise, const std::string& epiCountry, const std::string& poiCountry) const
+    {
+        const TemplatePair* pair = nullptr;
+
+        SEISCOMP_DEBUG("homeCountry = '%s', epiCountry = '%s', poiCountry = '%s'", _homeCountry,
+            epiCountry, poiCountry);
+        if (!_homeCountry.empty() && epiCountry == _homeCountry && poiCountry == _homeCountry)
+            pair = &_templates.homeCountry;
+        else if (epiCountry == poiCountry)
+            pair = &_templates.sameCountry;
+        else
+            pair = &_templates.differentCountry;
+
+        return precise ? pair->precise : pair->approximate;
+    }
 
     std::string nameEvent(Event* event)
     {
@@ -159,10 +222,13 @@ protected:
                 precise = false;
                 statusStr = "blank";
             }
+
             SEISCOMP_INFO(
                 "EQNamer::process(%s): Status is %s, naming by nearest city with precise=%s", evid,
                 statusStr, precise ? "true" : "false");
-            return crustTypePrefix(*f) + nameByNearestCity(lat, lon, precise);
+
+            const std::string crust = crustTypeLabel(*f);
+            return nameByNearestCity(lat, lon, crust, precise);
         }
 
         SEISCOMP_INFO("EQNamer::process(%s): Naming by polygon", evid);
@@ -171,9 +237,33 @@ protected:
         } else {
             SEISCOMP_ERROR(
                 "EQNamer::process(%s): No polygon containing %0.1f, %0.1f", evid, lon, lat);
-
             return "Unknown Region";
         }
+    }
+
+    std::string cityRelativeDescription(const CityRel& cr, const std::string& epiCountry,
+        const std::string& crustLabel, bool precise)
+    {
+        int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
+        const std::string& templ = selectTemplate(precise, epiCountry, cr.country);
+        std::string s = Seiscomp::Util::replace(
+            templ, Resolver(distkm, cr.azi, cr.name, cr.country, epiCountry));
+
+        auto r = crustLabel + " " + s;
+        boost::replace_all(r, " ,", ",");
+        boost::trim(r);
+        SEISCOMP_DEBUG("%s", r);
+        return r;
+    }
+
+    std::string nameByNearestCity(
+        double lat, double lon, const std::string& crustLabel, bool precise)
+    {
+        double dist, azi;
+        const std::string epiCountry = countryFor(lat, lon);
+        const CityD* city = nearestCity(lat, lon, 9999999, 0, _cities, &dist, &azi);
+        const CityRel cityRel = { dist, azi, city->name(), city->countryID() };
+        return cityRelativeDescription(cityRel, epiCountry, crustLabel, precise);
     }
 
     std::string nearbyCitiesString(Event* event, size_t count = 4)
@@ -181,47 +271,37 @@ protected:
         OriginPtr o = Origin::Find(event->preferredOriginID());
         const double lat = o->latitude().value();
         const double lon = o->longitude().value();
+        const std::string epiCountry = countryFor(lat, lon);
 
         std::vector<CityRel> rels;
         rels.reserve(_cities.size());
 
-        for (CityD city : _cities) {
+        for (const CityD& city : _cities) {
             double dist, azi1, azi2;
             Seiscomp::Math::Geo::delazi(lat, lon, city.lat, city.lon, &dist, &azi1, &azi2);
-            rels.push_back({ dist, azi2, city.name() });
+            rels.push_back({ dist, azi2, city.name(), city.countryID() });
         }
 
-        // Move the `count` closest entries to the front
-        std::partial_sort(rels.begin(), rels.begin() + count, rels.end(),
-            [](CityRel& x, CityRel& y) { return x.distDeg < y.distDeg; });
+        if (count > rels.size())
+            count = rels.size();
 
-        std::string ret = "";
-        for (size_t i = 0; i < count; i++) {
-            ret += cityRelativeDescription(rels[i], true) + "\n";
+        std::partial_sort(rels.begin(), rels.begin() + count, rels.end(),
+            [](const CityRel& x, const CityRel& y) { return x.distDeg < y.distDeg; });
+
+        std::string ret;
+        for (size_t i = 0; i < count; ++i) {
+            ret += cityRelativeDescription(rels[i], epiCountry, "", true) + "\n";
         }
 
         return ret;
-    }
-
-    std::string cityRelativeDescription(CityRel cr, bool precise)
-    {
-        int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
-        const std::string& templ = precise ? _preciseMessage : _approximateMessage;
-        return Seiscomp::Util::replace(templ, Resolver(distkm, cr.azi, cr.name));
-    }
-
-    std::string nameByNearestCity(double lat, double lon, bool precise)
-    {
-        double dist, azi;
-        const CityD* city = nearestCity(lat, lon, 9999999, 0, _cities, &dist, &azi);
-        return cityRelativeDescription({ dist, azi, city->name() }, precise);
     }
 
     bool _setup(const Seiscomp::Config::Config& config)
     {
         std::string citiesPath;
         try {
-            citiesPath = Environment::Instance()->absolutePath(config.getString("eqnamer.citiesPath"));
+            citiesPath
+                = Environment::Instance()->absolutePath(config.getString("eqnamer.citiesPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.citiesPath");
             return false;
@@ -229,23 +309,40 @@ protected:
 
         std::string regionsPath;
         try {
-            regionsPath = Environment::Instance()->absolutePath(config.getString("eqnamer.regionsPath"));
+            regionsPath
+                = Environment::Instance()->absolutePath(config.getString("eqnamer.regionsPath"));
         } catch (...) {
             SEISCOMP_ERROR("Must configure eqnamer.regionsPath");
             return false;
         }
 
+        std::string countriesPath;
         try {
-            _approximateMessage = config.getString("eqnamer.approximateMessage");
+            countriesPath
+                = Environment::Instance()->absolutePath(config.getString("eqnamer.countriesPath"));
         } catch (...) {
-            _approximateMessage = "Near @poi@";
+            SEISCOMP_ERROR("Must configure eqnamer.countriesPath");
+            return false;
         }
 
-        try {
-            _preciseMessage = config.getString("eqnamer.preciseMessage");
-        } catch (...) {
-            _preciseMessage = "@dist@km @dir@ of @poi@";
-        }
+        _homeCountry = getStringOrDefault(config, "eqnamer.homeCountry", "");
+
+        _templates.homeCountry.approximate
+            = getStringOrDefault(config, "eqnamer.template.homeCountry.approximate", "Near @poi@");
+        _templates.homeCountry.precise = getStringOrDefault(
+            config, "eqnamer.template.homeCountry.precise", "@dist@ km @dir@ of @poi@");
+
+        _templates.sameCountry.approximate = getStringOrDefault(
+            config, "eqnamer.template.sameCountry.approximate", "@epi_country@, Near @poi@");
+        _templates.sameCountry.precise = getStringOrDefault(config,
+            "eqnamer.template.sameCountry.precise", "@epi_country@, @dist@ km @dir@ of @poi@");
+
+        _templates.differentCountry.approximate
+            = getStringOrDefault(config, "eqnamer.template.differentCountry.approximate",
+                "@epi_country@, Near @poi@, @poi_country@");
+        _templates.differentCountry.precise
+            = getStringOrDefault(config, "eqnamer.template.differentCountry.precise",
+                "@epi_country@, @dist@ km @dir@ of @poi@, @poi_country@");
 
         XMLArchive ar;
         if (!ar.open(citiesPath.c_str())) {
@@ -254,46 +351,47 @@ protected:
         }
         ar >> NAMED_OBJECT("City", _cities);
         ar.close();
-        SEISCOMP_INFO("EQNamer: loaded %d cities", _cities.size());
+        SEISCOMP_INFO("EQNamer: loaded %d cities", (int)_cities.size());
+
+        const Regions* all_countries = Regions::load(countriesPath);
+        if (!all_countries || all_countries->featureSet.features().empty()) {
+            SEISCOMP_ERROR("EQNamer: no country features loaded - is countriesPath set correctly?");
+            return false;
+        }
+        for (GeoFeature* f : all_countries->featureSet.features())
+            _countries.featureSet.addFeature(f);
+        const_cast<std::vector<GeoFeature*>&>(all_countries->featureSet.features()).clear();
+        SEISCOMP_INFO("EQNamer: loaded %d countries", (int)_countries.featureSet.features().size());
 
         const Regions* all_regions = Regions::load(regionsPath);
-        if (all_regions->featureSet.features().size() == 0) {
+        if (!all_regions || all_regions->featureSet.features().empty()) {
             SEISCOMP_ERROR("EQNamer: no features loaded - is regionsPath set correctly?");
             return false;
         }
 
-        // Split the featuresets into two collections: the dynamic polygons where
-        // we will name by nearest city, and the other polygons whose names we use.
         for (GeoFeature* f : all_regions->featureSet.features()) {
             const auto& attrs = f->attributes();
             auto it = attrs.find("Dynamic");
             if (it != attrs.end()) {
-                if (it->second == "Dynamic") {
+                if (it->second == "Dynamic")
                     _dynamicRegions.featureSet.addFeature(f);
-                } else {
+                else
                     _staticRegions.featureSet.addFeature(f);
-                }
             }
         }
 
-        // GeoFeatureSet.addFeature assumes ownership of each feature, with ~FeatureSet
-        // calling delete on every GeoFeature* in its vector. But GeoFeature doesn't
-        // have a copy constructor, so couldn't work out how to copy features from
-        // all_regions into the two other collections? Thus each feature is now "owned"
-        // by two different featuresets that will both try to free it at teardown time,
-        // leading to a double-free.
-        // Hacking around this by reaching into GeoFeatureSet's guts to clear the
-        // all_regions vector for now.
         const_cast<std::vector<GeoFeature*>&>(all_regions->featureSet.features()).clear();
 
         SEISCOMP_INFO("EQNamer: loaded %d static regions, %d dynamic regions",
-            _staticRegions.featureSet.features().size(), _dynamicRegions.featureSet.features().size());
+            (int)_staticRegions.featureSet.features().size(),
+            (int)_dynamicRegions.featureSet.features().size());
 
         return true;
     }
 
 public:
     EQNamer() { }
+
     bool setup(const Seiscomp::Config::Config& config)
     {
         try {
@@ -307,17 +405,19 @@ public:
         }
     }
 
-    bool _process(Event* event, bool isNewEvent, const Journal& journal) {
+    bool _process(Event* event, bool isNewEvent, const Journal& journal)
+    {
         EventDescription* regionDesc = event->eventDescription(EventDescriptionIndex(REGION_NAME));
         if (regionDesc) {
             SEISCOMP_INFO("EQNamer::process(%s): existing region name is '%s'",
-                          event->publicID().c_str(), regionDesc->text().c_str());
+                event->publicID().c_str(), regionDesc->text().c_str());
         } else {
             SEISCOMP_INFO(
                 "EQNamer::process(%s): no existing region name", event->publicID().c_str());
             regionDesc = new EventDescription("", REGION_NAME);
             event->add(regionDesc);
         }
+
         const std::string name = nameEvent(event);
         SEISCOMP_INFO(
             "EQNamer::process(%s): setting region name to '%s'", event->publicID().c_str(), name);
@@ -328,7 +428,8 @@ public:
             OriginPtr o = Origin::Find(event->preferredOriginID());
             const auto status = o->evaluationStatus();
             reviewed = status == REVIEWED || status == FINAL;
-        } catch (...) {}
+        } catch (...) {
+        }
 
         Comment* nearbyPlaces = NULL;
         for (size_t i = 0; i < event->commentCount(); i++) {
@@ -342,31 +443,38 @@ public:
         if (reviewed) {
             const std::string nc = nearbyCitiesString(event);
             if (!nearbyPlaces) {
-                SEISCOMP_INFO("EQNamer::process(%s): adding new nearby places:\n%s", event->publicID().c_str(), nc);
+                SEISCOMP_INFO("EQNamer::process(%s): adding new nearby places:\n%s",
+                    event->publicID().c_str(), nc);
                 nearbyPlaces = new Comment;
                 nearbyPlaces->setId("nearby places");
                 nearbyPlaces->setText(nc);
                 if (!event->add(nearbyPlaces)) {
-                    SEISCOMP_ERROR("EQNamer::process(%s): error adding nearby places comment to event!", event->publicID().c_str());
+                    SEISCOMP_ERROR(
+                        "EQNamer::process(%s): error adding nearby places comment to event!",
+                        event->publicID().c_str());
                 }
             } else {
-                SEISCOMP_INFO("EQNamer::process(%s): updating nearby places:\n%s", event->publicID().c_str(), nc);
+                SEISCOMP_INFO("EQNamer::process(%s): updating nearby places:\n%s",
+                    event->publicID().c_str(), nc);
                 nearbyPlaces->setText(nc);
                 nearbyPlaces->update();
             }
         } else {
             if (nearbyPlaces) {
-                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, removing existing nearby places", event->publicID().c_str());
+                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, removing "
+                              "existing nearby places",
+                    event->publicID().c_str());
                 nearbyPlaces->detach();
             } else {
-                SEISCOMP_INFO("EQNamer::process(%s): origin not reviewed or final, not setting nearby places", event->publicID().c_str());
+                SEISCOMP_INFO(
+                    "EQNamer::process(%s): origin not reviewed or final, not setting nearby places",
+                    event->publicID().c_str());
             }
         }
 
-        return false; // true means event needs updating
+        return false;
     }
 
-    // isNewEvent added in seiscomp7, keep this old signature for compatibility
     bool process(Event* event, const Journal& journal) { return process(event, false, journal); }
 
     bool process(Event* event, bool isNewEvent, const Journal& journal)
@@ -382,10 +490,7 @@ public:
         }
     }
 
-    Magnitude *preferredMagnitude(const Origin *origin)
-    {
-        return nullptr;
-    }
+    Magnitude* preferredMagnitude(const Origin* origin) { return nullptr; }
 };
 
 REGISTER_EVENTPROCESSOR(EQNamer, "EQNAMER");

@@ -19,20 +19,84 @@
                         polygons.
                     </description>
                 </parameter>
-                <parameter name="approximateMessage" type="string">
+                <parameter name="countriesPath" type="string">
                     <description>
-                        Message conversion string that converts a POI/city into the
-                        region name for non-reviewed events. There are different
-                        placeholders that can be used: @dist@, @dir@ and @poi@.
+                        Path to a GeoJSON or BNA file containing a collection of named
+                        polygons describing countries, with the country name in the
+                        property Primary_ID.
                     </description>
                 </parameter>
-                <parameter name="preciseMessage" type="string">
+                <parameter name="homeCountry" type="string">
                     <description>
-                        Message conversion string that converts a POI/city into the
-                        region name for reviewed/final events. There are different
-                        placeholders that can be used: @dist@, @dir@ and @poi@.
+                        Country to treat as the home country. If both the epicenter and
+                        the point of interest fall in the home country, the special
+                        "homeCountry" template strings will be used.
                     </description>
                 </parameter>
+                    <group name="template">
+                        <group name="homeCountry">
+                            <parameter name="approximate" type="string">
+                                <description>
+                                    Message conversion string used for non-reviewed
+                                    events when both the epicenter and the point of
+                                    interest fall in the configured home country.
+                                    Supported placeholders are @poi@, @dist@, and @dir@.
+                                </description>
+                            </parameter>
+                            <parameter name="precise" type="string">
+                                <description>
+                                    Message conversion string used for reviewed events
+                                    when both the epicenter and the point of interest
+                                    fall in the configured home country. Supported
+                                    placeholders are @poi@, @dist@, and @dir@.
+                                </description>
+                            </parameter>
+                        </group>
+                        <group name="sameCountry">
+                            <parameter name="approximate" type="string">
+                                <description>
+                                    Message conversion string used for non-reviewed
+                                    events when the epicenter and the point of interest
+                                    fall in the same country, but not the home country.
+                                    Supported placeholders are @poi@, @poi_country@,
+                                    @dist@, and @dir@.
+                                </description>
+                            </parameter>
+                            <parameter name="precise" type="string">
+                                <description>
+                                    Message conversion string used for reviewed events
+                                    when the epicenter and the point of interest fall in
+                                    the same country, but not the home country.
+                                    Supported placeholders are @poi@, @poi_country@,
+                                    @dist@, and @dir@.
+                                </description>
+                            </parameter>
+                        </group>
+                        <group name="differentCountry">
+                            <parameter name="approximate" type="string">
+                                <description>
+                                    Message conversion string that converts a POI/city
+                                    into the region name for non-reviewed events when
+                                    the POI and epicenter fall in different countries.
+                                    Supported placeholders are @epi_country@,
+                                    @poi_country@, @dist@, @dir@, and @poi@.
+                                </description>
+                            </parameter>
+                            <parameter name="precise" type="string">
+                                <description>
+                                    Message conversion string used for reviewed events
+                                    when the epicenter and the point of interest fall in
+                                    different countries. Supported placeholders are
+                                    @epi_country@, @poi_country@, @dist@, @dir@, and
+                                    @poi@.
+                                </description>
+                            </parameter>
+                        </group>
+                    </group>
+                <group name="template">
+                    <group name="differentCountry">
+                    </group>
+                </group>
             </group>
         </configuration>
     </plugin>
