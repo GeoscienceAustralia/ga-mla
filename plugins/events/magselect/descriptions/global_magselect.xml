@@ -3,7 +3,7 @@
     <plugin name="magselect">
         <extends>scevent</extends>
         <description>
-            Selects the preferred MLac magnitude type for each event based on
+            Selects the preferred magnitude type for each event based on
             ordered, configurable rules. Each rule pairs a logical expression
             (evaluated against the reference magnitude type) with a target
             magnitude type. The first matching rule wins. If no rule matches,
@@ -16,27 +16,27 @@
               lat / latitude   — origin latitude
               lon / longitude  — origin longitude
 
-            Operators: &lt; &lt;= &gt; &gt;= == != and (&amp;) or (|) not (!)
+            Operators: &lt; &lt;= &gt; &gt;= == != and (&amp;&amp;) or (||) not (!)
 
             Example configuration in scevent.cfg:
-              magselect.referenceType = MLac075
+              magselect.referenceType = MLac
               magselect.rules = large, medium, small, fallback
-              magselect.rules.large.condition = "mag >= 6.0 &amp; stations >= 3"
+              magselect.rules.large.condition = "mag >= 6.0 &amp;&amp; stations >= 3"
               magselect.rules.large.magnitudeType = MLac01
-              magselect.rules.medium.condition = "mag >= 4.0 &amp; stations >= 3"
+              magselect.rules.medium.condition = "mag >= 4.0 &amp;&amp; stations >= 3"
               magselect.rules.medium.magnitudeType = MLac05
-              magselect.rules.small.condition = "mag &lt; 4.0 &amp; stations >= 3"
+              magselect.rules.small.condition = "mag &lt; 4.0 &amp;&amp; stations >= 3"
               magselect.rules.small.magnitudeType = MLac075
               magselect.rules.fallback.condition = "stations >= 3"
               magselect.rules.fallback.magnitudeType = MLac075
         </description>
         <configuration>
             <group name="magselect">
-                <parameter name="referenceType" type="string" default="MLac075">
+                <parameter name="referenceType" type="string">
                     <description>
                         Magnitude type used to resolve the 'mag' and 'stations'
                         keys in rule conditions. Must be present on the origin.
-                        Defaults to MLac075.
+                        Required — the plugin will not start without this parameter.
                     </description>
                 </parameter>
                 <parameter name="rules" type="list:string">
