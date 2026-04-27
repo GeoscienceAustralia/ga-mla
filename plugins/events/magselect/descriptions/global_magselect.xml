@@ -19,16 +19,16 @@
             Operators: &lt; &lt;= &gt; &gt;= == != and (&amp;&amp;) or (||) not (!)
 
             Example configuration in scevent.cfg:
-              magselect.referenceType = MLac
+              magselect.referenceType = MLa
               magselect.rules = large, medium, small, fallback
               magselect.rules.large.condition = "mag >= 6.0 &amp;&amp; stations >= 3"
-              magselect.rules.large.magnitudeType = MLac01
+              magselect.rules.large.magnitudeType = MLa01
               magselect.rules.medium.condition = "mag >= 4.0 &amp;&amp; stations >= 3"
-              magselect.rules.medium.magnitudeType = MLac05
+              magselect.rules.medium.magnitudeType = MLa05
               magselect.rules.small.condition = "mag &lt; 4.0 &amp;&amp; stations >= 3"
-              magselect.rules.small.magnitudeType = MLac075
+              magselect.rules.small.magnitudeType = MLa075
               magselect.rules.fallback.condition = "stations >= 3"
-              magselect.rules.fallback.magnitudeType = MLac075
+              magselect.rules.fallback.magnitudeType = MLa075
         </description>
         <configuration>
             <group name="magselect">
