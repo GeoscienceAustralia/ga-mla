@@ -1,11 +1,16 @@
+#define SEISCOMP_COMPONENT "eqnamer-batch-test"
+
 #include "eqnamer.cpp"
 #include "seiscomp/config/config.h"
 #include "seiscomp/datamodel/types.h"
 #include <seiscomp/datamodel/origin.h>
 
+#include <seiscomp/logging/output/fd.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #include "rapidcsv.h"
 
@@ -14,7 +19,7 @@ using Seiscomp::DataModel::EvaluationStatus;
 using Seiscomp::DataModel::REVIEWED;
 using Seiscomp::DataModel::PRELIMINARY;
 
-class TestEQNamer : EQNamer {
+class TestEQNamer : public EQNamer {
 public:
   void test() {
     Seiscomp::Config::Config cfg;
@@ -50,6 +55,13 @@ public:
 };
 
 int main() {
+  Seiscomp::Logging::FdOutput stderrLog(STDERR_FILENO);
+  stderrLog.subscribe(Seiscomp::Logging::_SCDebugChannel);
+  stderrLog.subscribe(Seiscomp::Logging::_SCInfoChannel);
+  stderrLog.subscribe(Seiscomp::Logging::_SCNoticeChannel);
+  stderrLog.subscribe(Seiscomp::Logging::_SCWarningChannel);
+  stderrLog.subscribe(Seiscomp::Logging::_SCErrorChannel);
+
   TestEQNamer().test();
   return 0;
 }
