@@ -20,13 +20,11 @@ def geojson_to_xml(collection: geojson.FeatureCollection) -> bytes:
         if props["Type"] == "capital":
             city.attrib["category"] = "C"
 
-        if country := str(props.get("Country") or "").strip():
-            city.attrib["countryID"] = country
+        city.attrib["countryID"] = str(props.get("Country") or "").strip()
 
         name = props["name"]
-        if country == "Australia":
-            state = str(props.get("State") or "").strip()
-            if state:
+        if str(props.get("Country") or "").strip() == "Australia":
+            if state := str(props.get("State") or "").strip():
                 name += f", {state}"
         etree.SubElement(city, "name").text = name
         etree.SubElement(city, "population").text = str(props["population"])
