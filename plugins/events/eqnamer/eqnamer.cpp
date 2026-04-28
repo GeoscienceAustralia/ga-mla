@@ -112,7 +112,7 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     }
 };
 
-const std::string getAttr(const GeoFeature& f, const std::string& key)
+static std::string getAttr(const GeoFeature& f, const std::string& key)
 {
     const auto& attrs = f.attributes();
     auto it = attrs.find(key);
@@ -122,7 +122,7 @@ const std::string getAttr(const GeoFeature& f, const std::string& key)
     return "";
 }
 
-std::string crustTypeLabel(const GeoFeature& f)
+static std::string crustTypeLabel(const GeoFeature& f)
 {
     const std::string t = getAttr(f, "Crust_Type");
     if (t == "Coastal")
