@@ -53,9 +53,16 @@
                         will be omitted from @epi_description@.
                     </description>
                 </parameter>
+                <parameter name="nearbyPlaceTemplate" type="list:string">
+                    <description>
+                        Template used for each line in the "nearby places" comment.
+                        Supported placeholders are @epi_description@, @poi@,
+                        @poi_country@, @dist@, and @dir@.
+                    </description>
+                </parameter>
                 <group name="template">
                     <group name="sameCountry">
-                        <parameter name="approximate" type="string">
+                        <parameter name="approximate" type="list:string">
                             <description>
                                 Template used for non-reviewed
                                 events when the epicenter and the point of interest

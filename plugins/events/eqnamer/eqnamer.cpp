@@ -143,9 +143,11 @@ static std::string getFeatureName(const GeoFeature& f)
     return "";
 }
 
+using Template = std::vector<std::string>;
+
 struct TemplatePair {
-    std::vector<std::string> approximate;
-    std::vector<std::string> precise;
+    Template approximate;
+    Template precise;
 };
 
 struct TemplateSet {
@@ -163,8 +165,8 @@ static std::string getStringOrDefault(
     }
 }
 
-static std::vector<std::string> getStringsOrDefault(const Seiscomp::Config::Config& config,
-    const std::string& key, const std::vector<std::string> def)
+static Template getStringsOrDefault(
+    const Seiscomp::Config::Config& config, const std::string& key, const Template def)
 {
     try {
         return config.getStrings(key);
@@ -182,6 +184,7 @@ protected:
 
     std::string _homeCountry;
     TemplateSet _templates;
+    Template _nearbyPlaceTemplate;
 
     std::string countryFor(double lat, double lon) const
     {
@@ -192,7 +195,7 @@ protected:
         return "";
     }
 
-    const std::vector<std::string>& selectTemplate(
+    const Template& selectTemplate(
         bool precise, const std::string& epiCountry, const std::string& poiCountry) const
     {
         const TemplatePair& pair
@@ -242,15 +245,14 @@ protected:
         }
     }
 
-    std::string cityRelativeDescription(const CityRel& cr, const std::string& epiCountry,
-        const std::string& crustLabel, bool precise)
+    std::string cityRelativeDescription(const Template& templ, const CityRel& cr,
+        const std::string& epiCountry, const std::string& crustLabel, bool precise)
     {
         int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
-        const auto& templ = selectTemplate(precise, epiCountry, cr.country);
         const bool skipEpiCountry = epiCountry.empty() || epiCountry == _homeCountry;
         const std::string epiDesc = skipEpiCountry ? crustLabel
-            : crustLabel.empty()              ? epiCountry
-                                              : crustLabel + " " + epiCountry;
+            : crustLabel.empty()                   ? epiCountry
+                                                   : crustLabel + " " + epiCountry;
         const auto resolver = Resolver(distkm, cr.azi, cr.name, cr.country, epiDesc);
         std::string s = "";
         bool first = true;
@@ -275,7 +277,8 @@ protected:
         const std::string epiCountry = countryFor(lat, lon);
         const CityD* city = nearestCity(lat, lon, 9999999, 0, _cities, &dist, &azi);
         const CityRel cityRel = { dist, azi, city->name(), city->countryID() };
-        return cityRelativeDescription(cityRel, epiCountry, crustLabel, precise);
+        const Template& templ = selectTemplate(precise, epiCountry, cityRel.country);
+        return cityRelativeDescription(templ, cityRel, epiCountry, crustLabel, precise);
     }
 
     std::string nearbyCitiesString(Event* event, size_t count = 4)
@@ -302,7 +305,8 @@ protected:
 
         std::string ret;
         for (size_t i = 0; i < count; ++i) {
-            ret += cityRelativeDescription(rels[i], epiCountry, "", true) + "\n";
+            ret += cityRelativeDescription(_nearbyPlaceTemplate, rels[i], epiCountry, "", true)
+                + "\n";
         }
 
         return ret;
@@ -338,6 +342,8 @@ protected:
         }
 
         _homeCountry = getStringOrDefault(config, "eqnamer.homeCountry", "");
+        _nearbyPlaceTemplate = getStringsOrDefault(
+            config, "eqnamer.nearbyPlaceTemplate", { "@dist@ km @dir@ of @poi@" });
 
         _templates.sameCountry.approximate = getStringsOrDefault(config,
             "eqnamer.template.sameCountry.approximate", { "@epi_description@", "Near @poi@" });
