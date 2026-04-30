@@ -60,15 +60,15 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
     const int& _dist;
     const std::string& _name;
     const std::string& _poiCountry;
-    const std::string& _epiCountry;
+    const std::string& _epiDescription;
     std::string _dir;
 
     Resolver(const int& dist, const double& azi, const std::string& name,
-        const std::string& poiCountry, const std::string& epiCountry)
+        const std::string& poiCountry, const std::string& epiDescription)
         : _dist(dist)
         , _name(name)
         , _poiCountry(poiCountry)
-        , _epiCountry(epiCountry)
+        , _epiDescription(epiDescription)
     {
         if (azi < 22.5 || azi > 360.0 - 22.5)
             _dir = "N";
@@ -103,8 +103,8 @@ struct Resolver : public Seiscomp::Util::VariableResolver {
             variable = _name;
         else if (variable == "poi_country")
             variable = _poiCountry;
-        else if (variable == "epi_country")
-            variable = _epiCountry;
+        else if (variable == "epi_description")
+            variable = _epiDescription;
         else
             return false;
 
@@ -149,7 +149,6 @@ struct TemplatePair {
 };
 
 struct TemplateSet {
-    TemplatePair homeCountry;
     TemplatePair sameCountry;
     TemplatePair differentCountry;
 };
@@ -196,16 +195,10 @@ protected:
     const std::vector<std::string>& selectTemplate(
         bool precise, const std::string& epiCountry, const std::string& poiCountry) const
     {
-        const TemplatePair* pair = nullptr;
+        const TemplatePair& pair
+            = epiCountry == poiCountry ? _templates.sameCountry : _templates.differentCountry;
 
-        if (!_homeCountry.empty() && epiCountry == _homeCountry && poiCountry == _homeCountry)
-            pair = &_templates.homeCountry;
-        else if (epiCountry == poiCountry)
-            pair = &_templates.sameCountry;
-        else
-            pair = &_templates.differentCountry;
-
-        return precise ? pair->precise : pair->approximate;
+        return precise ? pair.precise : pair.approximate;
     }
 
     std::string nameEvent(Event* event)
@@ -253,12 +246,12 @@ protected:
         const std::string& crustLabel, bool precise)
     {
         int distkm = Seiscomp::Math::Geo::deg2km(cr.distDeg);
-        SEISCOMP_DEBUG("dist = %i km", distkm);
         const auto& templ = selectTemplate(precise, epiCountry, cr.country);
-        const std::string ec = epiCountry.empty() ? crustLabel
-            : crustLabel.empty()                  ? epiCountry
-                                                  : crustLabel + " " + epiCountry;
-        const auto resolver = Resolver(distkm, cr.azi, cr.name, cr.country, ec);
+        const bool skipEpiCountry = epiCountry.empty() || epiCountry == _homeCountry;
+        const std::string epiDesc = skipEpiCountry ? crustLabel
+            : crustLabel.empty()              ? epiCountry
+                                              : crustLabel + " " + epiCountry;
+        const auto resolver = Resolver(distkm, cr.azi, cr.name, cr.country, epiDesc);
         std::string s = "";
         bool first = true;
         for (const std::string& templPart : templ) {
@@ -272,8 +265,6 @@ protected:
                 s += part;
             }
         }
-
-        SEISCOMP_DEBUG("'%s', epi='%s', poi='%s' => %s", crustLabel, epiCountry, cr.country, s);
         return s;
     }
 
@@ -348,23 +339,18 @@ protected:
 
         _homeCountry = getStringOrDefault(config, "eqnamer.homeCountry", "");
 
-        _templates.homeCountry.approximate = getStringsOrDefault(
-            config, "eqnamer.template.homeCountry.approximate", { "Near @poi@" });
-        _templates.homeCountry.precise = getStringsOrDefault(
-            config, "eqnamer.template.homeCountry.precise", { "@dist@ km @dir@ of @poi@" });
-
-        _templates.sameCountry.approximate = getStringsOrDefault(
-            config, "eqnamer.template.sameCountry.approximate", { "@epi_country@", "Near @poi@" });
+        _templates.sameCountry.approximate = getStringsOrDefault(config,
+            "eqnamer.template.sameCountry.approximate", { "@epi_description@", "Near @poi@" });
         _templates.sameCountry.precise
             = getStringsOrDefault(config, "eqnamer.template.sameCountry.precise",
-                { "@epi_country@", "@dist@ km @dir@ of @poi@" });
+                { "@epi_description@", "@dist@ km @dir@ of @poi@" });
 
         _templates.differentCountry.approximate
             = getStringsOrDefault(config, "eqnamer.template.differentCountry.approximate",
-                { "@epi_country@", "Near @poi@", "@poi_country@" });
+                { "@epi_description@", "Near @poi@", "@poi_country@" });
         _templates.differentCountry.precise
             = getStringsOrDefault(config, "eqnamer.template.differentCountry.precise",
-                { "@epi_country@", "@dist@ km @dir@ of @poi@", "@poi_country@" });
+                { "@epi_description@", "@dist@ km @dir@ of @poi@", "@poi_country@" });
 
         XMLArchive ar;
         if (!ar.open(citiesPath.c_str())) {

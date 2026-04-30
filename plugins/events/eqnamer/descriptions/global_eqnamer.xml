@@ -15,10 +15,11 @@
 
             The available placeholders are:
 
-            - @epi_country@: Name of the country containing the epicentre, if any. In
-            cases where the event falls in a polygon with a special crust type (e.g.
-            "Coastal" or "Offshore"), this will be prepended to the country name. e.g.
-            "Japan", "Coastal India", "Offshore"
+            - @epi_description@: Coarse description of the epicentre/earthquake
+            location. This is built from the country in which the location falls, and
+            any special crust type (e.g. "Coastal" or "Offshore") assigned
+            to the polygon in which the location falls. e.g. "Japan", "Coastal India",
+            "Offshore", "".
             - @poi@: Place name of a point of interest. e.g. "Singleton, NSW", "Paris"
             - @poi_country@: Name of the country containing the point of interest. e.g. "Australia", "France"
             - @dist@: Distance from the point of interest to the epicentre in kilometres. e.g. 125
@@ -48,46 +49,28 @@
                 <parameter name="homeCountry" type="string">
                     <description>
                         Country to treat as the home country. If both the epicenter and
-                        the point of interest fall in the home country, the special
-                        "homeCountry" template strings will be used.
+                        the point of interest fall in the home country, the country name
+                        will be omitted from @epi_description@.
                     </description>
                 </parameter>
                 <group name="template">
-                    <group name="homeCountry">
-                        <parameter name="approximate" type="list:string">
-                            <description>
-                                Template used for non-reviewed
-                                events when both the epicenter and the point of
-                                interest fall in the configured home country.
-                                Supported placeholders are @poi@, @dist@, and @dir@.
-                            </description>
-                        </parameter>
-                        <parameter name="precise" type="list:string">
-                            <description>
-                                Template used for reviewed events
-                                when both the epicenter and the point of interest
-                                fall in the configured home country. Supported
-                                placeholders are @poi@, @dist@, and @dir@.
-                            </description>
-                        </parameter>
-                    </group>
                     <group name="sameCountry">
                         <parameter name="approximate" type="string">
                             <description>
                                 Template used for non-reviewed
                                 events when the epicenter and the point of interest
-                                fall in the same country, but not the home country.
-                                Supported placeholders are @poi@, @poi_country@,
-                                @dist@, and @dir@.
+                                fall in the same country.
+                                Supported placeholders are @epi_description@, @poi@,
+                                @poi_country@, @dist@, and @dir@.
                             </description>
                         </parameter>
                         <parameter name="precise" type="list:string">
                             <description>
                                 Template used for reviewed events
                                 when the epicenter and the point of interest fall in
-                                the same country, but not the home country.
-                                Supported placeholders are @poi@, @poi_country@,
-                                @dist@, and @dir@.
+                                the same country.
+                                Supported placeholders are @epi_description@, @poi@,
+                                @poi_country@, @dist@, and @dir@.
                             </description>
                         </parameter>
                     </group>
@@ -96,7 +79,7 @@
                             <description>
                                 Template used for non-reviewed events when
                                 the POI and epicenter fall in different countries.
-                                Supported placeholders are @epi_country@,
+                                Supported placeholders are @epi_description@,
                                 @poi_country@, @dist@, @dir@, and @poi@.
                             </description>
                         </parameter>
@@ -105,7 +88,7 @@
                                 Template used for reviewed events
                                 when the epicenter and the point of interest fall in
                                 different countries. Supported placeholders are
-                                @epi_country@, @poi_country@, @dist@, @dir@, and
+                                @epi_description@, @poi_country@, @dist@, @dir@, and
                                 @poi@.
                             </description>
                         </parameter>
