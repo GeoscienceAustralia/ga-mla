@@ -27,7 +27,7 @@ def geojson_to_xml(collection: geojson.FeatureCollection) -> bytes:
             if state := str(props.get("State") or "").strip():
                 name += f", {state}"
         etree.SubElement(city, "name").text = name
-        etree.SubElement(city, "population").text = str(props["population"])
+        etree.SubElement(city, "population").text = str(props["population"] or 0)
         etree.SubElement(city, "latitude").text = str(lat)
         etree.SubElement(city, "longitude").text = str(lon)
     return etree.tostring(etree.ElementTree(root), pretty_print=True)
