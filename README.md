@@ -10,6 +10,8 @@ Geoscience Australia.
   different prefilters.
 - **eqnamer** is an scevent plugin that applies NEAC-specific logic to set the region
   name of earthquakes.
+- **magselect** is an scevent plugin that selects the preferred magnitude type for each
+  event based on ordered, configurable rules evaluated against a reference magnitude.
 
 
 ## Building
