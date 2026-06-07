@@ -188,7 +188,13 @@ class MagSelectProcessor : public Seiscomp::Client::EventProcessor {
                 try {
                     if ( !rule.expression->eval(&ctx) ) continue;
                 }
-                catch ( ... ) {
+                catch ( const Seiscomp::Core::ValueException & ) {
+                    // Reference magnitude or station count not yet available
+                    continue;
+                }
+                catch ( const std::exception &e ) {
+                    SEISCOMP_WARNING("magselect: rule evaluation error for origin %s: %s",
+                                     origin->publicID().c_str(), e.what());
                     continue;
                 }
 
