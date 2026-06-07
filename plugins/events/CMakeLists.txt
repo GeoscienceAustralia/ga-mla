@@ -1,1 +1,2 @@
 SUBDIRS(eqnamer)
+SUBDIRS(magselect)

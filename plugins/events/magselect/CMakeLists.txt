@@ -1,0 +1,11 @@
+SET(PLUGIN_TARGET magselect)
+SET(PLUGIN_SOURCES selector.cpp)
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/base/main/apps/processing/scevent)
+INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/src/base/main/apps/processing/scevent)
+
+SC_ADD_PLUGIN_LIBRARY(PLUGIN ${PLUGIN_TARGET} scevent)
+SC_LINK_LIBRARIES_INTERNAL(${PLUGIN_TARGET} evplugin)
+
+FILE(GLOB descs "${CMAKE_CURRENT_SOURCE_DIR}/descriptions/*.xml")
+INSTALL(FILES ${descs} DESTINATION ${SC3_PACKAGE_APP_DESC_DIR})
