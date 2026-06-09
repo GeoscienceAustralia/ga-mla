@@ -62,7 +62,7 @@ class MagKeyValueContext : public Seiscomp::Utils::V2::LeKeyValueContext {
             if ( key == "stations" ) {
                 if ( !_refMag ) throw Seiscomp::Core::ValueException();
                 if ( !_refMag->stationCount() ) throw Seiscomp::Core::ValueException();
-                return static_cast<double>(*_refMag->stationCount());
+                return static_cast<double>(_refMag->stationCount());
             }
             if ( key == "depth" ) {
                 return _origin->depth().value();
