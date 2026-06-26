@@ -41,6 +41,7 @@ Amplitude_MLA::Amplitude_MLA(const std::string& type)
 
 bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
 {
+    setDefaultConfiguration();
     if ( !AmplitudeProcessor_MLv::setup(settings) ) {
         return false;
     }
@@ -64,11 +65,14 @@ bool Amplitude_MLA::setup(const Seiscomp::Processing::Settings &settings)
     double maxDist;
     if ( settings.getValue(maxDist, "amplitudes." + _type + ".maxDist") ) {
         setMaxDist(maxDist);
-    } else {
-        setMaxDist(11);
     }
-
     return true;
+}
+
+void Amplitude_MLA::setDefaultConfiguration()
+{
+    Seiscomp::Processing::AmplitudeProcessor_MLv::setDefaultConfiguration();
+    setMaxDist(11);
 }
 
 int Amplitude_MLA::capabilities() const

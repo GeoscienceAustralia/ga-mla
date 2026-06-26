@@ -61,6 +61,7 @@ public:
 protected:
 
     virtual std::string defaultFilter() const { return ""; };
+    void setDefaultConfiguration() override; 
 
     /*
     Computes the amplitude of data in the range[i1, i2].
