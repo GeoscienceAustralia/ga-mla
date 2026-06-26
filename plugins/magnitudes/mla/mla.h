@@ -38,9 +38,9 @@ public:
     Returns the capabilities of the processor. This will be NoCapability.
     @returns: Capability of processor (NoCapability).
     */
-    virtual int capabilities() const;
+    virtual int capabilities() const override;
 
-    bool setup(const Seiscomp::Processing::Settings &settings);
+    bool setup(const Seiscomp::Processing::Settings &settings) override;
 
     /*
     Creates the parameter options associated with the capability.
@@ -48,7 +48,7 @@ public:
     @returns: The list of parameters.
     */
     virtual Seiscomp::Processing::AmplitudeProcessor::IDList
-        capabilityParameters(Capability cap) const;
+        capabilityParameters(Capability cap) const override;
 
     /*
     Sets the value of a parameter.
@@ -56,7 +56,7 @@ public:
     @param value: The value of the capability.
     @returns: Whether a parameter value has been set.
     */
-    virtual bool setParameter(Capability cap, const std::string &value);
+    virtual bool setParameter(Capability cap, const std::string &value) override;
 
 protected:
 
@@ -91,7 +91,7 @@ protected:
             size_t si1, size_t si2,
             double offset,
             AmplitudeIndex *dt, AmplitudeValue *amplitude,
-            double *period, double *snr);
+            double *period, double *snr) override;
 };
 
 /*
@@ -128,7 +128,7 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
         // as the amplitude value passed into the computeMagnitude method for
         // this magnitude processor. To set the amplitude type you want, return
         // the name of the amplitude type from scamp that you want to use.
-        std::string amplitudeType() const;
+        std::string amplitudeType() const override;
 
         // Calculates the ml magnitude with the given parameters.
         // @param amplitude: Amplitude of the seismic event (in millimetres).
@@ -157,7 +157,7 @@ class Magnitude_MLA : public Seiscomp::Processing::MagnitudeProcessor
 #if SC_API_VERSION >= SC_API_VERSION_CHECK(15,0,0)
               const Seiscomp::Processing::MagnitudeProcessor::Locale *locale,
 #endif
-              double &value);
+              double &value) override;
 
         /*#####################################################################
                                             STATIC METHODS
